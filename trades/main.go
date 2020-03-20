@@ -20,9 +20,9 @@ func main() {
 	login(jar)
 
 	var hostAddr = "localhost:8003"
-	lobbyClient := NewTradeLobbyClient(hostAddr, utils.Trainer{})
+	lobbyClient := NewTradeLobbyClient(hostAddr, utils.Trainer{}, jar)
 
-	battles := GetAvailableLobbies(lobbyClient, jar)
+	battles := GetAvailableLobbies(lobbyClient)
 	log.Infof("Available Lobbies: %+v", battles)
 
 	print(len(battles))
@@ -42,6 +42,7 @@ func login(jar *cookiejar.Jar) {
 		Jar: jar,
 	}
 
+	//TODO remove these hardcoded credentials
 	jsonStr := []byte(`{"username": "teste", "password": "ola"}`)
 	req, err := http.NewRequest("POST", "http://localhost:8001/login", bytes.NewBuffer(jsonStr))
 

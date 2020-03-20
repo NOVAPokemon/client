@@ -9,8 +9,10 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
+	"time"
 )
 
 type TradeLobbyClient struct {
@@ -25,23 +27,26 @@ type TradeLobbyClient struct {
 	finished bool
 
 	conn *websocket.Conn
+
+	jar *cookiejar.Jar
 }
 
-func NewTradeLobbyClient(hubAddr string, self utils.Trainer) *TradeLobbyClient {
+func NewTradeLobbyClient(hubAddr string, self utils.Trainer, jar *cookiejar.Jar) *TradeLobbyClient {
 	return &TradeLobbyClient{
 		HubAddr:  hubAddr,
 		Self:     self,
 		started:  false,
 		finished: false,
+		jar:      jar,
 	}
 }
 
-func GetAvailableLobbies(client *TradeLobbyClient, jar http.CookieJar) []utils.Lobby {
+func GetAvailableLobbies(client *TradeLobbyClient) []utils.Lobby {
 
 	u := url.URL{Scheme: "http", Host: client.HubAddr, Path: "/trades"}
 
 	httpClient := &http.Client{
-		Jar: jar,
+		Jar: client.jar,
 	}
 
 	resp, err := httpClient.Get(u.String())
@@ -63,11 +68,16 @@ func GetAvailableLobbies(client *TradeLobbyClient, jar http.CookieJar) []utils.L
 }
 
 func CreateTradeLobby(client *TradeLobbyClient) {
-
 	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/trades/join"}
 	log.Infof("Connecting to: %s", u.String())
 
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	dialer := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 45 * time.Second,
+		Jar:              client.jar,
+	}
+
+	c, _, err := dialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,7 +113,13 @@ func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
 	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/trades/join/" + battleId.Hex()}
 	log.Infof("Connecting to: %s", u.String())
 
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	dialer := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 45 * time.Second,
+		Jar:              client.jar,
+	}
+
+	c, _, err := dialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
