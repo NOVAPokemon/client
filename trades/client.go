@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/websockets/trades"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -136,7 +137,14 @@ func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
 		for {
 			select {
 			case msg := <-inChannel:
-				log.Infof("Message received: %s", *msg)
+				err, tradeMsg := trades.ParseMessage(msg)
+				if err != nil {
+					log.Error(err)
+				}
+
+				if tradeMsg.MsgType == trades.FINISH {
+					client.conn.Close()
+				}
 			}
 		}
 	}()
