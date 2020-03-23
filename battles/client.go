@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 type BattleLobbyClient struct {
@@ -80,16 +81,22 @@ func CreateBattleLobby(client *BattleLobbyClient) {
 		for {
 			select {
 			case msg := <-inChannel:
-				log.Infof("Message from trainer 1 received: %s", *msg)
+				fmt.Printf("\x1b[%dG", 0)
+				log.Infof("Message from server received: %s", *msg)
+				fmt.Print("Enter text:")
 			}
 		}
 	}()
 
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter text: ")
+		fmt.Print("Enter text:")
 		text, _ := reader.ReadString('\n')
-		outChannel <- &text
+		text = text[:len(text)-1]
+		text = strings.TrimSpace(text)
+		if len(text) > 0 {
+			outChannel <- &text
+		}
 	}
 
 }
@@ -116,16 +123,22 @@ func JoinBattleLobby(client *BattleLobbyClient, battleId primitive.ObjectID) {
 		for {
 			select {
 			case msg := <-inChannel:
-				log.Infof("Message received: %s", *msg)
+				fmt.Printf("\x1b[%dG", 0)
+				log.Infof("Message from server received: %s", *msg)
+				fmt.Print("Enter text:")
 			}
 		}
 	}()
 
 	for {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter text: ")
+		fmt.Print("Enter text:")
 		text, _ := reader.ReadString('\n')
-		outChannel <- &text
+		text = text[:len(text)-1]
+		text = strings.TrimSpace(text)
+		if len(text) > 0 {
+			outChannel <- &text
+		}
 	}
 
 }
