@@ -13,8 +13,6 @@ func main() {
 	battles := GetAvailableLobbies(lobbyClient)
 	log.Infof("Available Lobbies: %+v", battles)
 
-	print(len(battles))
-
 	if len(battles) == 0 {
 		CreateBattleLobby(lobbyClient)
 	} else {
