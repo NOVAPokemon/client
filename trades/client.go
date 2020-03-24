@@ -87,30 +87,14 @@ func CreateTradeLobby(client *TradeLobbyClient) {
 	client.conn = c
 
 	inChannel := make(chan *string)
-	outChannel := make(chan *string)
+	finished := make(chan bool)
 	go handleRecv(c, inChannel)
-	go handleSend(c, outChannel)
+	go readMessages(inChannel, finished)
 
-	go func() {
-		for {
-			select {
-			case msg := <-inChannel:
-				log.Infof("Message from trainer 1 received: %s", *msg)
-			}
-		}
-	}()
-
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter text: ")
-		text, _ := reader.ReadString('\n')
-		outChannel <- &text
-	}
-
+	mainLoop(c, finished)
 }
 
 func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
-
 	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/trades/join/" + battleId.Hex()}
 	log.Infof("Connecting to: %s", u.String())
 
@@ -129,66 +113,87 @@ func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
 	client.conn = c
 
 	inChannel := make(chan *string)
-	outChannel := make(chan *string)
+	finished := make(chan bool)
 	go handleRecv(c, inChannel)
-	go handleSend(c, outChannel)
+	go readMessages(inChannel, finished)
 
-	go func() {
-		for {
-			select {
-			case msg := <-inChannel:
-				err, tradeMsg := trades.ParseMessage(msg)
-				if err != nil {
-					log.Error(err)
-				}
-
-				if tradeMsg.MsgType == trades.FINISH {
-					client.conn.Close()
-				}
-			}
-		}
-	}()
-
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter text: ")
-		text, _ := reader.ReadString('\n')
-		outChannel <- &text
-	}
-
+	mainLoop(c, finished)
 }
 
-func handleSend(conn *websocket.Conn, channel chan *string) {
+func send(conn *websocket.Conn, msg *string) {
+	err := conn.WriteMessage(websocket.TextMessage, []byte(*msg))
 
-	for {
-		msg := <-channel
-
-		err := conn.WriteMessage(websocket.TextMessage, []byte(*msg))
-
-		if err != nil {
-			log.Error("write err:", err)
-		} else {
-			log.Debugf("Wrote %s into the channel", msg)
-		}
-
+	if err != nil {
+		return
+	} else {
+		log.Debugf("Wrote %s into the channel", msg)
 	}
-
 }
 
 func handleRecv(conn *websocket.Conn, channel chan *string) {
+	defer close(channel)
 
 	for {
 		_, message, err := conn.ReadMessage()
 
 		if err != nil {
-			log.Println(err)
+			return
 		} else {
 			msg := string(message)
 			log.Debugf("Received %s from the websocket", msg)
 			channel <- &msg
-
 		}
-
 	}
+}
 
+func readMessages(inChannel chan *string, finished chan bool) {
+	defer close(finished)
+
+	for {
+		select {
+		case msg, ok := <-inChannel:
+			if !ok {
+				return
+			}
+
+			err, tradeMsg := trades.ParseMessage(msg)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
+			log.Infof("Message: %s", *msg)
+
+			if tradeMsg.MsgType == trades.FINISH {
+				log.Info("Finished trade.")
+				finished <- true
+				return
+			}
+		}
+	}
+}
+
+func finish(conn *websocket.Conn) {
+	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	if err != nil {
+		log.Println("write close:", err)
+		return
+	}
+}
+
+func mainLoop(conn *websocket.Conn, finished chan bool) {
+	for {
+		select {
+		case v := <-finished:
+			if v == true {
+				finish(conn)
+				return
+			}
+		default:
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print("Enter text: ")
+			text, _ := reader.ReadString('\n')
+			send(conn, &text)
+		}
+	}
 }
