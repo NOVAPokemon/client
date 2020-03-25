@@ -86,10 +86,8 @@ func CreateTradeLobby(client *TradeLobbyClient) {
 	defer c.Close()
 	client.conn = c
 
-	inChannel := make(chan *string)
 	finished := make(chan bool)
-	go handleRecv(c, inChannel)
-	go readMessages(inChannel, finished)
+	go readMessages(c, finished)
 
 	mainLoop(c, finished)
 }
@@ -112,12 +110,12 @@ func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
 	defer c.Close()
 	client.conn = c
 
-	inChannel := make(chan *string)
 	finished := make(chan bool)
-	go handleRecv(c, inChannel)
-	go readMessages(inChannel, finished)
+	go readMessages(c, finished)
 
 	mainLoop(c, finished)
+
+	log.Info("Finishing...")
 }
 
 func send(conn *websocket.Conn, msg *string) {
@@ -130,62 +128,55 @@ func send(conn *websocket.Conn, msg *string) {
 	}
 }
 
-func handleRecv(conn *websocket.Conn, channel chan *string) {
-	defer close(channel)
+func readMessages(conn *websocket.Conn, finished chan bool) {
+	defer close(finished)
 
 	for {
 		_, message, err := conn.ReadMessage()
 
 		if err != nil {
+			log.Error(err)
 			return
-		} else {
-			msg := string(message)
-			log.Debugf("Received %s from the websocket", msg)
-			channel <- &msg
 		}
-	}
-}
 
-func readMessages(inChannel chan *string, finished chan bool) {
-	defer close(finished)
+		msg := string(message)
+		log.Debugf("Received %s from the websocket", msg)
 
-	for {
-		select {
-		case msg, ok := <-inChannel:
-			if !ok {
-				return
-			}
+		err, tradeMsg := trades.ParseMessage(&msg)
+		if err != nil {
+			log.Error(err)
+			continue
+		}
 
-			err, tradeMsg := trades.ParseMessage(msg)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
+		log.Infof("Message: %s", msg)
 
-			log.Infof("Message: %s", *msg)
-
-			if tradeMsg.MsgType == trades.FINISH {
-				log.Info("Finished trade.")
-				finished <- true
-				return
-			}
+		if tradeMsg.MsgType == trades.FINISH {
+			log.Info("Finished trade.")
+			finished <- true
+			return
 		}
 	}
 }
 
 func finish(conn *websocket.Conn) {
+	log.Info("Finishing connection...")
 	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+
+	time.Sleep(2 * time.Second)
 	if err != nil {
 		log.Println("write close:", err)
 		return
 	}
+
+	log.Info("Wrote finishing message")
 }
 
 func mainLoop(conn *websocket.Conn, finished chan bool) {
 	for {
 		select {
 		case v := <-finished:
-			if v == true {
+			log.Info("Value v: ", v)
+			if v {
 				finish(conn)
 				return
 			}
