@@ -86,10 +86,15 @@ func CreateTradeLobby(client *TradeLobbyClient) {
 	defer c.Close()
 	client.conn = c
 
-	finished := make(chan bool)
-	go readMessages(c, finished)
+	finished := make(chan struct{})
+	writeChannel := make(chan *string)
 
-	mainLoop(c, finished)
+	go readMessages(c, finished)
+	go writeMessage(c, writeChannel)
+
+	mainLoop(c, writeChannel, finished)
+
+	log.Info("Finishing...")
 }
 
 func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
@@ -110,10 +115,13 @@ func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
 	defer c.Close()
 	client.conn = c
 
-	finished := make(chan bool)
-	go readMessages(c, finished)
+	finished := make(chan struct{})
+	writeChannel := make(chan *string)
 
-	mainLoop(c, finished)
+	go readMessages(c, finished)
+	go writeMessage(c, writeChannel)
+
+	mainLoop(c, writeChannel, finished)
 
 	log.Info("Finishing...")
 }
@@ -128,7 +136,7 @@ func send(conn *websocket.Conn, msg *string) {
 	}
 }
 
-func readMessages(conn *websocket.Conn, finished chan bool) {
+func readMessages(conn *websocket.Conn, finished chan struct{}) {
 	defer close(finished)
 
 	for {
@@ -152,39 +160,31 @@ func readMessages(conn *websocket.Conn, finished chan bool) {
 
 		if tradeMsg.MsgType == trades.FINISH {
 			log.Info("Finished trade.")
-			finished <- true
+			close(finished)
 			return
 		}
 	}
 }
 
-func finish(conn *websocket.Conn) {
-	log.Info("Finishing connection...")
-	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-
-	time.Sleep(2 * time.Second)
-	if err != nil {
-		log.Println("write close:", err)
-		return
-	}
-
-	log.Info("Wrote finishing message")
+func writeMessage(conn *websocket.Conn, writeChannel chan *string) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter text: ")
+	text, _ := reader.ReadString('\n')
+	writeChannel <- &text
 }
 
-func mainLoop(conn *websocket.Conn, finished chan bool) {
+func finish(conn *websocket.Conn) {
+	log.Info("Finishing connection...")
+}
+
+func mainLoop(conn *websocket.Conn, writeChannel chan *string, finished chan struct{}) {
 	for {
 		select {
-		case v := <-finished:
-			log.Info("Value v: ", v)
-			if v {
-				finish(conn)
-				return
-			}
-		default:
-			reader := bufio.NewReader(os.Stdin)
-			fmt.Print("Enter text: ")
-			text, _ := reader.ReadString('\n')
-			send(conn, &text)
+		case <-finished:
+			finish(conn)
+			return
+		case msg := <-writeChannel:
+			send(conn, msg)
 		}
 	}
 }
