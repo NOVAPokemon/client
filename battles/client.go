@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/websockets/battles"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"os"
-	"strings"
+	"time"
 )
 
 type BattleLobbyClient struct {
@@ -26,14 +28,17 @@ type BattleLobbyClient struct {
 	finished bool
 
 	conn *websocket.Conn
+
+	cookieJar *cookiejar.Jar
 }
 
-func NewBattleLobbyClient(hubAddr string, self utils.Trainer) *BattleLobbyClient {
+func NewBattleLobbyClient(hubAddr string, self utils.Trainer, cookies *cookiejar.Jar) *BattleLobbyClient {
 	return &BattleLobbyClient{
-		HubAddr:  hubAddr,
-		Self:     self,
-		started:  false,
-		finished: false,
+		HubAddr:   hubAddr,
+		Self:      self,
+		started:   false,
+		finished:  false,
+		cookieJar: cookies,
 	}
 }
 
@@ -48,15 +53,15 @@ func GetAvailableLobbies(client *BattleLobbyClient) []utils.Lobby {
 		return nil
 	}
 
-	var battles []utils.Lobby
-	err = json.NewDecoder(resp.Body).Decode(&battles)
+	var availableBattles []utils.Lobby
+	err = json.NewDecoder(resp.Body).Decode(&availableBattles)
 
 	if err != nil {
 		log.Error(err)
 		return nil
 	}
 
-	return battles
+	return availableBattles
 }
 
 func CreateBattleLobby(client *BattleLobbyClient) {
@@ -64,7 +69,13 @@ func CreateBattleLobby(client *BattleLobbyClient) {
 	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/battles/join"}
 	log.Infof("Connecting to: %s", u.String())
 
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	dialer := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 45 * time.Second,
+		Jar:              client.cookieJar,
+	}
+
+	c, _, err := dialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -72,32 +83,15 @@ func CreateBattleLobby(client *BattleLobbyClient) {
 	defer c.Close()
 	client.conn = c
 
+	defer c.Close()
+	client.conn = c
+
 	inChannel := make(chan *string)
-	outChannel := make(chan *string)
+	finished := make(chan bool)
 	go handleRecv(c, inChannel)
-	go handleSend(c, outChannel)
+	go readMessages(inChannel, finished)
 
-	go func() {
-		for {
-			select {
-			case msg := <-inChannel:
-				fmt.Printf("\x1b[%dG", 0)
-				log.Infof("Message from server received: %s", *msg)
-				fmt.Print("Enter text:")
-			}
-		}
-	}()
-
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter text:")
-		text, _ := reader.ReadString('\n')
-		text = text[:len(text)-1]
-		text = strings.TrimSpace(text)
-		if len(text) > 0 {
-			outChannel <- &text
-		}
-	}
+	mainLoop(c, finished)
 
 }
 
@@ -106,7 +100,13 @@ func JoinBattleLobby(client *BattleLobbyClient, battleId primitive.ObjectID) {
 	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/battles/join/" + battleId.Hex()}
 	log.Infof("Connecting to: %s", u.String())
 
-	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	dialer := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 45 * time.Second,
+		Jar:              client.cookieJar,
+	}
+
+	c, _, err := dialer.Dial(u.String(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -114,66 +114,95 @@ func JoinBattleLobby(client *BattleLobbyClient, battleId primitive.ObjectID) {
 	defer c.Close()
 	client.conn = c
 
+	defer c.Close()
+	client.conn = c
+
 	inChannel := make(chan *string)
-	outChannel := make(chan *string)
+	finished := make(chan bool)
+
 	go handleRecv(c, inChannel)
-	go handleSend(c, outChannel)
+	go readMessages(inChannel, finished)
 
-	go func() {
-		for {
-			select {
-			case msg := <-inChannel:
-				fmt.Printf("\x1b[%dG", 0)
-				log.Infof("Message from server received: %s", *msg)
-				fmt.Print("Enter text:")
-			}
-		}
-	}()
-
-	for {
-		reader := bufio.NewReader(os.Stdin)
-		fmt.Print("Enter text:")
-		text, _ := reader.ReadString('\n')
-		text = text[:len(text)-1]
-		text = strings.TrimSpace(text)
-		if len(text) > 0 {
-			outChannel <- &text
-		}
-	}
+	mainLoop(c, finished)
 
 }
 
-func handleSend(conn *websocket.Conn, channel chan *string) {
+// adapted from trades client
 
-	for {
-		msg := <-channel
+func send(conn *websocket.Conn, msg *string) {
+	err := conn.WriteMessage(websocket.TextMessage, []byte(*msg))
 
-		err := conn.WriteMessage(websocket.TextMessage, []byte(*msg))
-
-		if err != nil {
-			log.Error("write err:", err)
-		} else {
-			log.Debugf("Wrote %s into the channel", msg)
-		}
-
+	if err != nil {
+		return
+	} else {
+		log.Debugf("Wrote %s into the channel", msg)
 	}
-
 }
 
 func handleRecv(conn *websocket.Conn, channel chan *string) {
+	defer close(channel)
 
 	for {
 		_, message, err := conn.ReadMessage()
 
 		if err != nil {
-			log.Println(err)
+			return
 		} else {
 			msg := string(message)
 			log.Debugf("Received %s from the websocket", msg)
 			channel <- &msg
-
 		}
-
 	}
+}
 
+func readMessages(inChannel chan *string, finished chan bool) {
+	defer close(finished)
+
+	for {
+		select {
+		case msg, ok := <-inChannel:
+			if !ok {
+				return
+			}
+
+			err, battleMsg := battles.ParseMessage(msg)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+
+			log.Infof("Message: %s", *msg)
+
+			if battleMsg.MsgType == battles.ERROR { //TODO
+				log.Info("Error")
+				finished <- true
+				return
+			}
+		}
+	}
+}
+
+func finish(conn *websocket.Conn) {
+	err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	if err != nil {
+		log.Println("write close:", err)
+		return
+	}
+}
+
+func mainLoop(conn *websocket.Conn, finished chan bool) {
+	for {
+		select {
+		case v := <-finished:
+			if v == true {
+				finish(conn)
+				return
+			}
+		default:
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print("Enter text: ")
+			text, _ := reader.ReadString('\n')
+			send(conn, &text)
+		}
+	}
 }
