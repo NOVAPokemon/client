@@ -90,7 +90,7 @@ func CreateTradeLobby(client *TradeLobbyClient) {
 	writeChannel := make(chan *string)
 
 	go readMessages(c, finished)
-	go writeMessage(c, writeChannel)
+	go writeMessage(writeChannel)
 
 	mainLoop(c, writeChannel, finished)
 
@@ -119,7 +119,7 @@ func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
 	writeChannel := make(chan *string)
 
 	go readMessages(c, finished)
-	go writeMessage(c, writeChannel)
+	go writeMessage(writeChannel)
 
 	mainLoop(c, writeChannel, finished)
 
@@ -160,20 +160,21 @@ func readMessages(conn *websocket.Conn, finished chan struct{}) {
 
 		if tradeMsg.MsgType == trades.FINISH {
 			log.Info("Finished trade.")
-			close(finished)
 			return
 		}
 	}
 }
 
-func writeMessage(conn *websocket.Conn, writeChannel chan *string) {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter text: ")
-	text, _ := reader.ReadString('\n')
-	writeChannel <- &text
+func writeMessage(writeChannel chan *string) {
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("Enter text: ")
+		text, _ := reader.ReadString('\n')
+		writeChannel <- &text
+	}
 }
 
-func finish(conn *websocket.Conn) {
+func finish() {
 	log.Info("Finishing connection...")
 }
 
@@ -181,7 +182,7 @@ func mainLoop(conn *websocket.Conn, writeChannel chan *string, finished chan str
 	for {
 		select {
 		case <-finished:
-			finish(conn)
+			finish()
 			return
 		case msg := <-writeChannel:
 			send(conn, msg)

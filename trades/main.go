@@ -1,12 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"github.com/NOVAPokemon/utils"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"os"
+	"strings"
 )
 
 func main() {
@@ -43,7 +48,14 @@ func login(jar *cookiejar.Jar) {
 	}
 
 	//TODO remove these hardcoded credentials
-	jsonStr := []byte(`{"username": "teste", "password": "ola"}`)
+
+	username := requestUsername()
+	password := requestPassword()
+
+	jsonStr, err := json.Marshal(utils.UserJSON{Username: username, Password: password})
+	if err != nil {
+		log.Error(err)
+	}
 	req, err := http.NewRequest("POST", "http://localhost:8001/login", bytes.NewBuffer(jsonStr))
 
 	if err != nil {
@@ -65,4 +77,18 @@ func login(jar *cookiejar.Jar) {
 	for _, cookie := range jar.Cookies(u2) {
 		log.Info(cookie)
 	}
+}
+
+func requestUsername() string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter username: ")
+	text, _ := reader.ReadString('\n')
+	return strings.TrimSpace(text)
+}
+
+func requestPassword() string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter password: ")
+	text, _ := reader.ReadString('\n')
+	return strings.TrimSpace(text)
 }
