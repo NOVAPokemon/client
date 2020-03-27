@@ -132,7 +132,7 @@ func send(conn *websocket.Conn, msg *string) {
 	if err != nil {
 		return
 	} else {
-		log.Debugf("Wrote %s into the channel", msg)
+		log.Debugf("Wrote %s into the channel", *msg)
 	}
 }
 
