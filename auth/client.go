@@ -1,7 +1,6 @@
-package utils
+package auth
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -11,21 +10,18 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os"
-	"strings"
 )
 
-func Login(jar *cookiejar.Jar) {
-	username := requestUsername()
-	password := requestPassword()
-
-	LoginWithUsernameAndPassword(username, password, jar)
+type AuthClient struct {
+	Jar      *cookiejar.Jar
+	Username string
+	Password string
 }
 
-func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar) {
+func (client *AuthClient) LoginWithUsernameAndPassword(username, password string) {
 
 	httpClient := &http.Client{
-		Jar: jar,
+		Jar: client.Jar,
 	}
 
 	jsonStr, err := json.Marshal(utils.UserJSON{Username: username, Password: password})
@@ -57,22 +53,4 @@ func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar)
 		log.Error(err)
 		return
 	}
-
-	for _, cookie := range jar.Cookies(&loginUrl) {
-		log.Info(cookie)
-	}
-}
-
-func requestUsername() string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter username: ")
-	text, _ := reader.ReadString('\n')
-	return strings.TrimSpace(text)
-}
-
-func requestPassword() string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter password: ")
-	text, _ := reader.ReadString('\n')
-	return strings.TrimSpace(text)
 }

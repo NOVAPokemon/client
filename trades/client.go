@@ -1,4 +1,4 @@
-package main
+package trades
 
 import (
 	"bufio"
@@ -17,37 +17,17 @@ import (
 )
 
 type TradeLobbyClient struct {
-	HubAddr string
-
-	TradeId primitive.ObjectID
-
-	Self     utils.Trainer
-	Trainer2 utils.Trainer
-
-	started  bool
-	finished bool
-
-	conn *websocket.Conn
-
-	jar *cookiejar.Jar
+	TradesAddr string
+	Jar        *cookiejar.Jar
+	conn       *websocket.Conn
 }
 
-func NewTradeLobbyClient(hubAddr string, self utils.Trainer, jar *cookiejar.Jar) *TradeLobbyClient {
-	return &TradeLobbyClient{
-		HubAddr:  hubAddr,
-		Self:     self,
-		started:  false,
-		finished: false,
-		jar:      jar,
-	}
-}
+func (client *TradeLobbyClient) GetAvailableLobbies() []utils.Lobby {
 
-func GetAvailableLobbies(client *TradeLobbyClient) []utils.Lobby {
-
-	u := url.URL{Scheme: "http", Host: client.HubAddr, Path: "/trades"}
+	u := url.URL{Scheme: "http", Host: client.TradesAddr, Path: "/trades"}
 
 	httpClient := &http.Client{
-		Jar: client.jar,
+		Jar: client.Jar,
 	}
 
 	resp, err := httpClient.Get(u.String())
@@ -68,14 +48,14 @@ func GetAvailableLobbies(client *TradeLobbyClient) []utils.Lobby {
 	return battles
 }
 
-func CreateTradeLobby(client *TradeLobbyClient) {
-	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/trades/join"}
+func (client *TradeLobbyClient) CreateTradeLobby() {
+	u := url.URL{Scheme: "ws", Host: client.TradesAddr, Path: "/trades/join"}
 	log.Infof("Connecting to: %s", u.String())
 
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
-		Jar:              client.jar,
+		Jar:              client.Jar,
 	}
 
 	c, _, err := dialer.Dial(u.String(), nil)
@@ -97,14 +77,14 @@ func CreateTradeLobby(client *TradeLobbyClient) {
 	log.Info("Finishing...")
 }
 
-func JoinTradeLobby(client *TradeLobbyClient, battleId primitive.ObjectID) {
-	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/trades/join/" + battleId.Hex()}
+func (client *TradeLobbyClient) JoinTradeLobby(battleId primitive.ObjectID) {
+	u := url.URL{Scheme: "ws", Host: client.TradesAddr, Path: "/trades/join/" + battleId.Hex()}
 	log.Infof("Connecting to: %s", u.String())
 
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
-		Jar:              client.jar,
+		Jar:              client.Jar,
 	}
 
 	c, _, err := dialer.Dial(u.String(), nil)

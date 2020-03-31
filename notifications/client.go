@@ -1,4 +1,4 @@
-package main
+package notifications
 
 import (
 	"encoding/json"
@@ -14,17 +14,18 @@ import (
 )
 
 type NotificationClient struct {
+	NotificationsAddr    string
+	Jar                  *cookiejar.Jar
 	notificationHandlers map[string]utils.NotificationHandler
-	jar                  *cookiejar.Jar
 }
 
-func (client *NotificationClient) ListenToNotifications(addr string) {
-	u := url.URL{Scheme: "ws", Host: addr, Path: notifications.SubscribeNotificationPath}
+func (client *NotificationClient) ListenToNotifications() {
+	u := url.URL{Scheme: "ws", Host: client.NotificationsAddr, Path: notifications.SubscribeNotificationPath}
 
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
-		Jar:              client.jar,
+		Jar:              client.Jar,
 	}
 
 	c, _, err := dialer.Dial(u.String(), nil)

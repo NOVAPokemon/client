@@ -1,4 +1,4 @@
-package main
+package battles
 
 import (
 	"bufio"
@@ -17,34 +17,14 @@ import (
 )
 
 type BattleLobbyClient struct {
-	HubAddr string
-
-	BattleId primitive.ObjectID
-
-	Self     utils.Trainer
-	Trainer2 utils.Trainer
-
-	started  bool
-	finished bool
-
-	conn *websocket.Conn
-
-	cookieJar *cookiejar.Jar
+	BattlesAddr string
+	Jar         *cookiejar.Jar
+	conn        *websocket.Conn
 }
 
-func NewBattleLobbyClient(hubAddr string, self utils.Trainer, cookies *cookiejar.Jar) *BattleLobbyClient {
-	return &BattleLobbyClient{
-		HubAddr:   hubAddr,
-		Self:      self,
-		started:   false,
-		finished:  false,
-		cookieJar: cookies,
-	}
-}
+func (client *BattleLobbyClient) GetAvailableLobbies() []utils.Lobby {
 
-func GetAvailableLobbies(client *BattleLobbyClient) []utils.Lobby {
-
-	u := url.URL{Scheme: "http", Host: client.HubAddr, Path: "/battles"}
+	u := url.URL{Scheme: "http", Host: client.BattlesAddr, Path: "/battles"}
 
 	resp, err := http.Get(u.String())
 
@@ -64,15 +44,15 @@ func GetAvailableLobbies(client *BattleLobbyClient) []utils.Lobby {
 	return availableBattles
 }
 
-func CreateBattleLobby(client *BattleLobbyClient) {
+func (client *BattleLobbyClient) CreateBattleLobby() {
 
-	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/battles/join"}
+	u := url.URL{Scheme: "ws", Host: client.BattlesAddr, Path: "/battles/join"}
 	log.Infof("Connecting to: %s", u.String())
 
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
-		Jar:              client.cookieJar,
+		Jar:              client.Jar,
 	}
 
 	c, _, err := dialer.Dial(u.String(), nil)
@@ -95,15 +75,15 @@ func CreateBattleLobby(client *BattleLobbyClient) {
 
 }
 
-func JoinBattleLobby(client *BattleLobbyClient, battleId primitive.ObjectID) {
+func (client *BattleLobbyClient) JoinBattleLobby(battleId primitive.ObjectID) {
 
-	u := url.URL{Scheme: "ws", Host: client.HubAddr, Path: "/battles/join/" + battleId.Hex()}
+	u := url.URL{Scheme: "ws", Host: client.BattlesAddr, Path: "/battles/join/" + battleId.Hex()}
 	log.Infof("Connecting to: %s", u.String())
 
 	dialer := &websocket.Dialer{
 		Proxy:            http.ProxyFromEnvironment,
 		HandshakeTimeout: 45 * time.Second,
-		Jar:              client.cookieJar,
+		Jar:              client.Jar,
 	}
 
 	c, _, err := dialer.Dial(u.String(), nil)
