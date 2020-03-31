@@ -14,13 +14,13 @@ import (
 	"net/url"
 )
 
-type AuthClient struct {
+type Client struct {
 	Jar      *cookiejar.Jar
 	Username string
 	Password string
 }
 
-func (client *AuthClient) LoginWithUsernameAndPassword(username, password string) {
+func (client *Client) LoginWithUsernameAndPassword(username, password string) {
 
 	httpClient := &http.Client{
 		Jar: client.Jar,
@@ -57,9 +57,9 @@ func (client *AuthClient) LoginWithUsernameAndPassword(username, password string
 	}
 }
 
-func GetInitialTokens(username string, jar *cookiejar.Jar) error {
+func (client *Client) GetInitialTokens(username string) error {
 	httpClient := &http.Client{
-		Jar: jar,
+		Jar: client.Jar,
 	}
 
 	host := fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort)

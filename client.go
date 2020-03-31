@@ -1,4 +1,4 @@
-package client
+package main
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type NovaPokemonClient struct {
 	Username string
 	Password string
 
-	authClient          *auth.AuthClient
+	authClient          *auth.Client
 	battlesClient       *battles.BattleLobbyClient
 	tradesClient        *trades.TradeLobbyClient
 	notificationsClient *notifications.NotificationClient
@@ -49,11 +49,11 @@ func (client *NovaPokemonClient) init() {
 
 }
 
-func (c *NovaPokemonClient) Register(username string, password string) {
-	c.authClient.Register(c.Username, c.Password)
+func (client *NovaPokemonClient) Register(username string, password string) {
+	//client.authClient.Register(client.Username, client.Password)
 }
 
-func (c *NovaPokemonClient) Login() {
-	c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+func (client *NovaPokemonClient) Login() {
+	client.authClient.LoginWithUsernameAndPassword(client.Username, client.Password)
 }
 
