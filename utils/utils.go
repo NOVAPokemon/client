@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	auth "github.com/NOVAPokemon/authentication/exported"
+	trainers "github.com/NOVAPokemon/trainers/exported"
 	"github.com/NOVAPokemon/utils"
 	log "github.com/sirupsen/logrus"
 	"net/http"
@@ -15,15 +17,14 @@ import (
 	"strings"
 )
 
-func Login(jar *cookiejar.Jar) {
+func Login(jar *cookiejar.Jar) (string, error) {
 	username := requestUsername()
 	password := requestPassword()
 
-	LoginWithUsernameAndPassword(username, password, jar)
+	return username, LoginWithUsernameAndPassword(username, password, jar)
 }
 
-func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar) {
-
+func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar) error {
 	httpClient := &http.Client{
 		Jar: jar,
 	}
@@ -31,6 +32,7 @@ func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar)
 	jsonStr, err := json.Marshal(utils.UserJSON{Username: username, Password: password})
 	if err != nil {
 		log.Error(err)
+		return err
 	}
 
 	host := fmt.Sprintf("%s:%d", utils.Host, utils.AuthenticationPort)
@@ -44,23 +46,58 @@ func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar)
 
 	if err != nil {
 		log.Error(err)
-		return
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := httpClient.Do(req)
 
-	log.Info(resp)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("unexpected reponse")
+	}
+
+	return nil
+}
+
+func GetInitialTokens(username string, jar *cookiejar.Jar) error {
+	httpClient := &http.Client{
+		Jar: jar,
+	}
+
+	host := fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort)
+	generateTokensUrl := url.URL{
+		Scheme: "http",
+		Host:   host,
+		Path:   fmt.Sprintf(trainers.GenerateAllTokensPath, username),
+	}
+
+	log.Info("requesting tokens at ", generateTokensUrl.String())
+
+	req, err := http.NewRequest("GET", generateTokensUrl.String(), nil)
 
 	if err != nil {
 		log.Error(err)
-		return
+		return err
 	}
 
-	for _, cookie := range jar.Cookies(&loginUrl) {
-		log.Info(cookie)
+	resp, err := httpClient.Do(req)
+
+	if err != nil {
+		log.Error(err)
+		return err
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("unexpected reponse")
+	}
+
+	return nil
 }
 
 func requestUsername() string {

@@ -6,6 +6,7 @@ import (
 	"github.com/NOVAPokemon/utils"
 	log "github.com/sirupsen/logrus"
 	"net/http/cookiejar"
+	"net/url"
 )
 
 func main() {
@@ -16,7 +17,24 @@ func main() {
 		return
 	}
 
-	clientUtils.Login(jar)
+	username, err := clientUtils.Login(jar)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	err = clientUtils.GetInitialTokens(username, jar)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, cookie := range jar.Cookies(&url.URL{
+		Scheme:     "http",
+		Host:       "localhost",
+	}) {
+		log.Info(cookie)
+	}
 
 	var hostAddr = fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort)
 	lobbyClient := NewTradeLobbyClient(hostAddr, utils.Trainer{}, jar)
