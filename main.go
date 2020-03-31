@@ -6,15 +6,14 @@ import (
 )
 
 func main() {
-	client := NovaPokemonClient{}
+	client := NovaPokemonClient{
+		Username:            requestUsername(),
+		Password:            requestPassword(),
+	}
 	client.init()
 
-	username := requestUsername()
-	password := requestPassword()
-
-	client.authClient.LoginWithUsernameAndPassword(username, password)
-
-	err := client.authClient.GetInitialTokens(username)
+	client.Login()
+	err := 	client.GetAllTokens()
 	if err != nil {
 		log.Error(err)
 		return

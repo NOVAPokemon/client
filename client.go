@@ -28,6 +28,10 @@ func (client *NovaPokemonClient) init() {
 
 	client.jar, _ = cookiejar.New(nil)
 
+	client.authClient = &auth.Client{
+		Jar:         client.jar,
+	}
+
 	client.battlesClient = &battles.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
 		Jar:         client.jar,
@@ -55,5 +59,9 @@ func (client *NovaPokemonClient) Register(username string, password string) {
 
 func (client *NovaPokemonClient) Login() {
 	client.authClient.LoginWithUsernameAndPassword(client.Username, client.Password)
+}
+
+func (client *NovaPokemonClient) GetAllTokens() error {
+	return client.authClient.GetInitialTokens(client.Username)
 }
 

@@ -16,8 +16,6 @@ import (
 
 type Client struct {
 	Jar      *cookiejar.Jar
-	Username string
-	Password string
 }
 
 func (client *Client) LoginWithUsernameAndPassword(username, password string) {
