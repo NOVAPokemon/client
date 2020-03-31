@@ -1,7 +1,6 @@
-package utils
+package auth
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -13,26 +12,23 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os"
-	"strings"
 )
 
-func Login(jar *cookiejar.Jar) (string, error) {
-	username := requestUsername()
-	password := requestPassword()
-
-	return username, LoginWithUsernameAndPassword(username, password, jar)
+type AuthClient struct {
+	Jar      *cookiejar.Jar
+	Username string
+	Password string
 }
 
-func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar) error {
+func (client *AuthClient) LoginWithUsernameAndPassword(username, password string) {
+
 	httpClient := &http.Client{
-		Jar: jar,
+		Jar: client.Jar,
 	}
 
 	jsonStr, err := json.Marshal(utils.UserJSON{Username: username, Password: password})
 	if err != nil {
 		log.Error(err)
-		return err
 	}
 
 	host := fmt.Sprintf("%s:%d", utils.Host, utils.AuthenticationPort)
@@ -46,23 +42,19 @@ func LoginWithUsernameAndPassword(username, password string, jar *cookiejar.Jar)
 
 	if err != nil {
 		log.Error(err)
-		return err
+		return
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := httpClient.Do(req)
 
+	log.Info(resp)
+
 	if err != nil {
 		log.Error(err)
-		return err
+		return
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.New("unexpected reponse")
-	}
-
-	return nil
 }
 
 func GetInitialTokens(username string, jar *cookiejar.Jar) error {
@@ -98,18 +90,4 @@ func GetInitialTokens(username string, jar *cookiejar.Jar) error {
 	}
 
 	return nil
-}
-
-func requestUsername() string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter username: ")
-	text, _ := reader.ReadString('\n')
-	return strings.TrimSpace(text)
-}
-
-func requestPassword() string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter password: ")
-	text, _ := reader.ReadString('\n')
-	return strings.TrimSpace(text)
 }
