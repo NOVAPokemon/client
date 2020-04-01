@@ -1,7 +1,0 @@
-package trades
-
-func main() {
-	/*
-
-	*/
-}

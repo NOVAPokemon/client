@@ -7,21 +7,21 @@ import (
 
 func main() {
 	client := NovaPokemonClient{
-		Username:            requestUsername(),
-		Password:            requestPassword(),
+		Username: requestUsername(),
+		Password: requestPassword(),
 	}
 	client.init()
 
 	client.Login()
-	err := 	client.GetAllTokens()
+	err := client.GetAllTokens()
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
 	for _, cookie := range client.jar.Cookies(&url.URL{
-		Scheme:     "http",
-		Host:       "localhost",
+		Scheme: "http",
+		Host:   "localhost",
 	}) {
 		log.Info(cookie)
 	}

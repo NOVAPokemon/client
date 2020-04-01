@@ -2,12 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/NOVAPokemon/client/auth"
-	"github.com/NOVAPokemon/client/battles"
-	"github.com/NOVAPokemon/client/notifications"
-	"github.com/NOVAPokemon/client/trades"
-	"github.com/NOVAPokemon/client/trainers"
 	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/clients"
 	"net/http/cookiejar"
 )
 
@@ -15,11 +11,11 @@ type NovaPokemonClient struct {
 	Username string
 	Password string
 
-	authClient          *auth.Client
-	battlesClient       *battles.BattleLobbyClient
-	tradesClient        *trades.TradeLobbyClient
-	notificationsClient *notifications.NotificationClient
-	trainersClient      *trainers.TrainersClient
+	authClient          *clients.AuthClient
+	battlesClient       *clients.BattleLobbyClient
+	tradesClient        *clients.TradeLobbyClient
+	notificationsClient *clients.NotificationClient
+	trainersClient      *clients.TrainersClient
 	jar                 *cookiejar.Jar
 	// storeClient *store.StoreClient // TODO
 }
@@ -28,40 +24,46 @@ func (client *NovaPokemonClient) init() {
 
 	client.jar, _ = cookiejar.New(nil)
 
-	client.authClient = &auth.Client{
-		Jar:         client.jar,
+	client.authClient = &clients.AuthClient{
+		Jar: client.jar,
 	}
 
-	client.battlesClient = &battles.BattleLobbyClient{
+	client.battlesClient = &clients.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
 		Jar:         client.jar,
 	}
 
-	client.tradesClient = &trades.TradeLobbyClient{
+	client.tradesClient = &clients.TradeLobbyClient{
 		TradesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort),
 		Jar:        client.jar,
 	}
 
-	client.notificationsClient = &notifications.NotificationClient{
+	client.notificationsClient = &clients.NotificationClient{
 		NotificationsAddr: fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort),
 		Jar:               client.jar,
 	}
 
-	client.trainersClient = &trainers.TrainersClient{
+	client.trainersClient = &clients.TrainersClient{
 		TrainersAddr: fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort),
 	}
 
 }
 
-func (client *NovaPokemonClient) Register(username string, password string) {
-	//client.authClient.Register(client.Username, client.Password)
+func (c *NovaPokemonClient) StartAutoClient(username string, password string) {
+	c.authClient.Register(c.Username, c.Password)
 }
 
-func (client *NovaPokemonClient) Login() {
-	client.authClient.LoginWithUsernameAndPassword(client.Username, client.Password)
+func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
 }
 
-func (client *NovaPokemonClient) GetAllTokens() error {
-	return client.authClient.GetInitialTokens(client.Username)
+func (c *NovaPokemonClient) Register() {
+	c.authClient.Register(c.Username, c.Password)
 }
 
+func (c *NovaPokemonClient) Login() {
+	c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+}
+
+func (c *NovaPokemonClient) GetAllTokens() error {
+	return c.authClient.GetInitialTokens(c.Username)
+}
