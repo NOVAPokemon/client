@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
+	log "github.com/sirupsen/logrus"
 	"net/http/cookiejar"
 )
 
@@ -16,13 +17,19 @@ type NovaPokemonClient struct {
 	tradesClient        *clients.TradeLobbyClient
 	notificationsClient *clients.NotificationClient
 	trainersClient      *clients.TrainersClient
-	jar                 *cookiejar.Jar
 	// storeClient *store.StoreClient // TODO
+
+	jar *cookiejar.Jar
 }
 
 func (client *NovaPokemonClient) init() {
 
-	client.jar, _ = cookiejar.New(nil)
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	client.jar = jar
 
 	client.authClient = &clients.AuthClient{
 		Jar: client.jar,
@@ -43,27 +50,26 @@ func (client *NovaPokemonClient) init() {
 		Jar:               client.jar,
 	}
 
-	client.trainersClient = &clients.TrainersClient{
-		TrainersAddr: fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort),
-	}
+	client.trainersClient = &clients.TrainersClient{}
+	client.trainersClient.Init(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), client.jar)
 
 }
 
-func (c *NovaPokemonClient) StartAutoClient(username string, password string) {
-	c.authClient.Register(c.Username, c.Password)
+func (client *NovaPokemonClient) StartAutoClient(username string, password string) {
+	client.authClient.Register(client.Username, client.Password)
 }
 
-func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
+func (client *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
 }
 
-func (c *NovaPokemonClient) Register() {
-	c.authClient.Register(c.Username, c.Password)
+func (client *NovaPokemonClient) Register() {
+	client.authClient.Register(client.Username, client.Password)
 }
 
-func (c *NovaPokemonClient) Login() {
-	c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+func (client *NovaPokemonClient) Login() {
+	client.authClient.LoginWithUsernameAndPassword(client.Username, client.Password)
 }
 
-func (c *NovaPokemonClient) GetAllTokens() error {
-	return c.authClient.GetInitialTokens(c.Username)
+func (client *NovaPokemonClient) GetAllTokens() error {
+	return client.authClient.GetInitialTokens(client.Username)
 }

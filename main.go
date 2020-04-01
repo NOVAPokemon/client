@@ -26,6 +26,18 @@ func main() {
 		log.Info(cookie)
 	}
 
+	trainers, err := client.trainersClient.ListTrainers()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, trainer := range *trainers {
+		log.Info(trainer.Username)
+	}
+}
+
+func testTrades(client *NovaPokemonClient) {
 	trades := client.tradesClient.GetAvailableLobbies()
 	log.Infof("Available Lobbies: %+v", trades)
 
