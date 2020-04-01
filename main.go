@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	client := NovaPokemonClient{
+	client := &NovaPokemonClient{
 		Username: requestUsername(),
 		Password: requestPassword(),
 	}
@@ -26,6 +26,13 @@ func main() {
 		log.Info(cookie)
 	}
 
+	client.StartListeningToNotifications()
+
+	client.StartTradeWithPlayer(requestUsername())
+}
+
+
+func testTrainers(client *NovaPokemonClient) {
 	trainers, err := client.trainersClient.ListTrainers()
 	if err != nil {
 		log.Error(err)
@@ -34,18 +41,5 @@ func main() {
 
 	for _, trainer := range *trainers {
 		log.Info(trainer.Username)
-	}
-}
-
-func testTrades(client *NovaPokemonClient) {
-	trades := client.tradesClient.GetAvailableLobbies()
-	log.Infof("Available Lobbies: %+v", trades)
-
-	if len(trades) == 0 {
-		client.tradesClient.CreateTradeLobby()
-	} else {
-		lobby := trades[0]
-		log.Infof("Joining lobby %s", lobby)
-		client.tradesClient.JoinTradeLobby(lobby.Id)
 	}
 }
