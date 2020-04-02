@@ -4,9 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/NOVAPokemon/utils/clients"
-	"github.com/NOVAPokemon/utils/notifications"
-	log "github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math/rand"
 	"os"
 	"strings"
@@ -27,23 +24,6 @@ func requestPassword() string {
 	return strings.TrimSpace(text)
 }
 
-func waitForBattleChallenges(c *NovaPokemonClient) error {
-
-	for ; ; {
-		notification := <-c.notificationsClient.NotificationsChannel
-		switch notification.Type {
-		case notifications.ChallengeToBattle:
-			log.Info("I was challenged to a battle")
-			battleId, err := primitive.ObjectIDFromHex(string(notification.Content))
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			c.battlesClient.AcceptChallenge(battleId)
-		}
-	}
-
-}
 
 func autoManageBattle(c *NovaPokemonClient, channels clients.BattleChannels) error {
 
