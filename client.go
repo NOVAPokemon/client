@@ -81,7 +81,7 @@ func (c *NovaPokemonClient) RegisterAndGetTokens() error {
 	return nil
 }
 
-func LoginAndGetTokens(c *NovaPokemonClient) error {
+func (c *NovaPokemonClient) LoginAndGetTokens() error {
 	err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
 
 	if err != nil {
@@ -99,8 +99,25 @@ func LoginAndGetTokens(c *NovaPokemonClient) error {
 	return nil
 }
 
-func LoginAndChallegePlayer(c *NovaPokemonClient, otherPlayer string) error {
-	err := LoginAndGetTokens(c)
+func (c *NovaPokemonClient) LoginAndStartAutoBattleQueue() error {
+	err := c.LoginAndGetTokens()
+
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	for ; ; {
+		channels := c.battlesClient.QueueForBattle()
+		err := autoManageBattle(c, channels)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+}
+
+func (c *NovaPokemonClient) LoginAndChallegePlayer(otherPlayer string) error {
+	err := c.LoginAndGetTokens()
 
 	if err != nil {
 		log.Error(err)
@@ -113,7 +130,7 @@ func LoginAndChallegePlayer(c *NovaPokemonClient, otherPlayer string) error {
 }
 
 func LoginAndAcceptChallenges(c *NovaPokemonClient) {
-	err := LoginAndGetTokens(c)
+	err := c.LoginAndGetTokens()
 
 	if err != nil {
 		log.Error(err)
