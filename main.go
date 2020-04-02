@@ -1,14 +1,14 @@
 package main
 
 func main() {
-
-	client := NovaPokemonClient{
-		Username: requestUsername(),
-		Password: requestPassword(),
+	client := &NovaPokemonClient{
+		Username: RandomString(10),
+		Password: RandomString(10),
 	}
 
 	client.init()
-	_ = LoginAndStartAutoBattleQueue(&client)
+	_ = client.RegisterAndGetTokens()
+	_ = client.LoginAndStartAutoBattleQueue()
 
 }
 
@@ -34,15 +34,22 @@ func main2() {
 		log.Info(cookie)
 	}
 
-	trades := client.tradesClient.GetAvailableLobbies()
-	log.Infof("Available Lobbies: %+v", trades)
+	client.StartListeningToNotifications()
 
-	if len(trades) == 0 {
-		client.tradesClient.CreateTradeLobby()
-	} else {
-		lobby := trades[0]
-		log.Infof("Joining lobby %s", lobby)
-		client.tradesClient.JoinTradeLobby(lobby.Id)
+	client.StartTradeWithPlayer(requestUsername())
+}
+
+
+func testTrainers(client *NovaPokemonClient) {
+	trainers, err := client.trainersClient.ListTrainers()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	for _, trainer := range *trainers {
+		log.Info(trainer.Username)
 	}
 }
+
 */

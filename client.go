@@ -6,9 +6,9 @@ import (
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/notifications"
+	"github.com/NOVAPokemon/utils/websockets/battles"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"net/http/cookiejar"
 	"time"
 )
 
@@ -24,32 +24,25 @@ type NovaPokemonClient struct {
 	// storeClient *store.StoreClient // TODO
 
 	notificationsChannel chan *utils.Notification
-
-	jar *cookiejar.Jar
 }
 
 func (c *NovaPokemonClient) init() {
 
-	c.jar, _ = cookiejar.New(nil)
-
 	c.authClient = &clients.AuthClient{
-		Jar: c.jar,
 	}
 
 	c.battlesClient = &clients.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
-		Jar:         c.jar,
 	}
 
 	c.tradesClient = &clients.TradeLobbyClient{
 		TradesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort),
-		Jar:        c.jar,
 	}
 
 	notificationsChan := make(chan *utils.Notification)
 	addr := fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort)
-	c.notificationsClient = clients.NewNotificationClient(addr, c.jar, notificationsChan)
-	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), c.jar)
+	c.notificationsClient = clients.NewNotificationClient(addr, notificationsChan)
+	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort))
 
 }
 
@@ -89,7 +82,7 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 		return err
 	}
 
-	err = c.authClient.GetInitialTokens(c.Username)
+	err = c.trainersClient.GetAllTrainerTokens(c.Username)
 
 	if err != nil {
 		log.Error(err)
@@ -108,7 +101,7 @@ func (c *NovaPokemonClient) LoginAndStartAutoBattleQueue() error {
 	}
 
 	for ; ; {
-		channels := c.battlesClient.QueueForBattle()
+		channels := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
 		err := autoManageBattle(c, channels)
 		if err != nil {
 			log.Error(err)
@@ -124,7 +117,7 @@ func (c *NovaPokemonClient) LoginAndChallegePlayer(otherPlayer string) error {
 		return err
 	}
 
-	c.battlesClient.ChallengePlayerToBattle(otherPlayer)
+	c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, c.getPokemonsForBattle(), otherPlayer)
 
 	return nil
 }
@@ -167,17 +160,17 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 
 }
 
-// Notification Handlers
-
-func (c *NovaPokemonClient) StartListeningToNotifications() {
+func (c *NovaPokemonClient) StartAutoBattleQueue() {
 	for ; ; {
-		channels := c.battlesClient.QueueForBattle()
+		channels := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
 		err := autoManageBattle(c, channels)
 		if err != nil {
 			log.Error(err)
 		}
 	}
 }
+
+// Notification Handlers
 
 func (c *NovaPokemonClient) ParseReceivedNotifications() {
 	for {
@@ -189,6 +182,17 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 			}
 		}
 	}
+}
+
+func (c *NovaPokemonClient) getPokemonsForBattle() map[string]string {
+	var pokemonTkns = make(map[string]string, battles.PokemonsPerBattle)
+	for k, v := range c.trainersClient.PokemonTokens {
+		pokemonTkns[k] = v
+		if len(pokemonTkns) == battles.PokemonsPerBattle {
+			break
+		}
+	}
+	return pokemonTkns
 }
 
 func waitForBattleChallenges(c *NovaPokemonClient) error {
@@ -203,8 +207,7 @@ func waitForBattleChallenges(c *NovaPokemonClient) error {
 				log.Error(err)
 				return err
 			}
-			c.battlesClient.AcceptChallenge(battleId)
+			c.battlesClient.AcceptChallenge(c.authClient.AuthToken, c.getPokemonsForBattle(), battleId)
 		}
 	}
-
 }

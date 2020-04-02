@@ -24,7 +24,6 @@ func requestPassword() string {
 	return strings.TrimSpace(text)
 }
 
-
 func autoManageBattle(c *NovaPokemonClient, channels clients.BattleChannels) error {
 
 	go func() {
@@ -56,4 +55,10 @@ func RandomString(n int) string {
 		s[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(s)
+}
+
+func GetRandomElementsFromArray(arr []interface{}, count int) []interface{} {
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(arr), func(i, j int) { arr[i], arr[j] = arr[j], arr[i] })
+	return arr[:count]
 }
