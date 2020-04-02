@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
+	log "github.com/sirupsen/logrus"
 	"net/http/cookiejar"
 )
 
@@ -20,50 +21,104 @@ type NovaPokemonClient struct {
 	// storeClient *store.StoreClient // TODO
 }
 
-func (client *NovaPokemonClient) init() {
+func (c *NovaPokemonClient) init() {
 
-	client.jar, _ = cookiejar.New(nil)
+	c.jar, _ = cookiejar.New(nil)
 
-	client.authClient = &clients.AuthClient{
-		Jar: client.jar,
+	c.authClient = &clients.AuthClient{
+		Jar: c.jar,
 	}
 
-	client.battlesClient = &clients.BattleLobbyClient{
+	c.battlesClient = &clients.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
-		Jar:         client.jar,
+		Jar:         c.jar,
 	}
 
-	client.tradesClient = &clients.TradeLobbyClient{
+	c.tradesClient = &clients.TradeLobbyClient{
 		TradesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort),
-		Jar:        client.jar,
+		Jar:        c.jar,
 	}
 
-	client.notificationsClient = &clients.NotificationClient{
-		NotificationsAddr: fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort),
-		Jar:               client.jar,
+	notificationsChan := make(chan *utils.Notification)
+	addr := fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort)
+	c.notificationsClient = clients.NewNotificationClient(addr, c.jar, notificationsChan)
+	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), c.jar)
+
+}
+
+func (c *NovaPokemonClient) RegisterAndGetTokens() error {
+	err := c.authClient.Register(c.Username, c.Password)
+
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
-	client.trainersClient = &clients.TrainersClient{
-		TrainersAddr: fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort),
+	return nil
+}
+
+func LoginAndGetTokens(c *NovaPokemonClient) error {
+	err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	err = c.authClient.GetInitialTokens(c.Username)
+
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func LoginAndStartAutoBattleQueue(c *NovaPokemonClient) error {
+	err := LoginAndGetTokens(c)
+
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	for ; ; {
+		channels := c.battlesClient.QueueForBattle()
+		err := autoManageBattle(c, channels)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 
 }
 
-func (c *NovaPokemonClient) StartAutoClient(username string, password string) {
-	c.authClient.Register(c.Username, c.Password)
+func LoginAndChallegePlayer(c *NovaPokemonClient, otherPlayer string) error {
+	err := LoginAndGetTokens(c)
+
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	c.battlesClient.ChallengePlayerToBattle(otherPlayer)
+
+	return nil
 }
 
-func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
-}
+func LoginAndAcceptChallenges(c *NovaPokemonClient) {
+	err := LoginAndGetTokens(c)
 
-func (c *NovaPokemonClient) Register() {
-	c.authClient.Register(c.Username, c.Password)
-}
+	if err != nil {
+		log.Error(err)
+		return
+	}
 
-func (c *NovaPokemonClient) Login() {
-	c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
-}
+	go c.notificationsClient.ListenToNotifications()
+	err = waitForBattleChallenges(c)
 
-func (c *NovaPokemonClient) GetAllTokens() error {
-	return c.authClient.GetInitialTokens(c.Username)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 }

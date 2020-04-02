@@ -1,11 +1,19 @@
 package main
 
-import (
-	log "github.com/sirupsen/logrus"
-	"net/url"
-)
-
 func main() {
+
+	client := NovaPokemonClient{
+		Username: requestUsername(),
+		Password: requestPassword(),
+	}
+
+	client.init()
+	_ = LoginAndStartAutoBattleQueue(&client)
+
+}
+
+/*
+func main2() {
 	client := NovaPokemonClient{
 		Username: requestUsername(),
 		Password: requestPassword(),
@@ -37,3 +45,4 @@ func main() {
 		client.tradesClient.JoinTradeLobby(lobby.Id)
 	}
 }
+*/
