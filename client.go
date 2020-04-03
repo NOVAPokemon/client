@@ -8,6 +8,7 @@ import (
 	"github.com/NOVAPokemon/utils/notifications"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"math/rand"
 	"net/http/cookiejar"
 	"time"
 )
@@ -28,6 +29,8 @@ type NovaPokemonClient struct {
 	jar *cookiejar.Jar
 }
 
+const MaxNotifications = 20
+
 func (c *NovaPokemonClient) init() {
 
 	c.jar, _ = cookiejar.New(nil)
@@ -41,33 +44,20 @@ func (c *NovaPokemonClient) init() {
 		Jar:         c.jar,
 	}
 
-	c.tradesClient = &clients.TradeLobbyClient{
-		TradesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort),
-		Jar:        c.jar,
-	}
+	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort), c.jar)
 
-	notificationsChan := make(chan *utils.Notification)
+	c.notificationsChannel = make(chan *utils.Notification)
 	addr := fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort)
-	c.notificationsClient = clients.NewNotificationClient(addr, c.jar, notificationsChan)
-	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), c.jar)
 
+	c.notificationsClient = clients.NewNotificationClient(addr, c.jar, c.notificationsChannel)
+
+	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), c.jar)
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
-	trades := c.tradesClient.GetAvailableLobbies()
-	log.Infof("Available Lobbies: %+v", trades)
-
-	if len(trades) == 0 {
-		lobbyId := c.tradesClient.CreateTradeLobby(playerId)
-		log.Info(lobbyId)
-		c.tradesClient.JoinTradeLobby(lobbyId)
-	} else {
-		return
-
-		//lobby := trades[0]
-		//log.Infof("Joining lobby %s", lobby)
-		//c.tradesClient.JoinTradeLobby(lobby.Id)
-	}
+	lobbyId := c.tradesClient.CreateTradeLobby(playerId)
+	log.Info("Created lobby ", lobbyId)
+	c.tradesClient.JoinTradeLobby(lobbyId)
 }
 
 func (c *NovaPokemonClient) RegisterAndGetTokens() error {
@@ -81,7 +71,7 @@ func (c *NovaPokemonClient) RegisterAndGetTokens() error {
 	return nil
 }
 
-func LoginAndGetTokens(c *NovaPokemonClient) error {
+func (c *NovaPokemonClient) LoginAndGetTokens() error {
 	err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
 
 	if err != nil {
@@ -99,8 +89,8 @@ func LoginAndGetTokens(c *NovaPokemonClient) error {
 	return nil
 }
 
-func LoginAndChallegePlayer(c *NovaPokemonClient, otherPlayer string) error {
-	err := LoginAndGetTokens(c)
+func (c *NovaPokemonClient) LoginAndChallegePlayer(otherPlayer string) error {
+	err := c.LoginAndGetTokens()
 
 	if err != nil {
 		log.Error(err)
@@ -112,8 +102,8 @@ func LoginAndChallegePlayer(c *NovaPokemonClient, otherPlayer string) error {
 	return nil
 }
 
-func LoginAndAcceptChallenges(c *NovaPokemonClient) {
-	err := LoginAndGetTokens(c)
+func (c *NovaPokemonClient) LoginAndAcceptChallenges() {
+	err := c.LoginAndGetTokens()
 
 	if err != nil {
 		log.Error(err)
@@ -121,13 +111,66 @@ func LoginAndAcceptChallenges(c *NovaPokemonClient) {
 	}
 
 	go c.notificationsClient.ListenToNotifications()
-	err = waitForBattleChallenges(c)
+	err = c.waitForBattleChallenges()
 
 	if err != nil {
 		log.Error(err)
 		return
 	}
 }
+
+func (c *NovaPokemonClient) StartListeningToNotifications() {
+	go c.notificationsClient.ListenToNotifications()
+}
+
+func (c *NovaPokemonClient) ParseReceivedNotifications() {
+	waitDuration := 5 * time.Second
+
+	waitForNotificationTimer := time.NewTimer(waitDuration)
+
+	for {
+		<-waitForNotificationTimer.C
+		select {
+		case notification := <-c.notificationsChannel:
+			switch notification.Type {
+			case notifications.WantsToTrade:
+				err := c.WantingTrade(notification)
+				if err != nil {
+					log.Error(err)
+				}
+			}
+		default:
+			err := c.startAutoTrade()
+			if err != nil {
+				return
+			}
+		}
+		waitForNotificationTimer.Reset(waitDuration)
+	}
+}
+
+func (c *NovaPokemonClient) startAutoTrade() error {
+	trainers, err := c.notificationsClient.GetOthersListening(c.Username)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	if len(trainers) == 0 {
+		log.Warn("No one to trade with")
+		return nil
+	} else {
+		log.Infof("got %d trainers", len(trainers))
+	}
+
+	tradeWith := trainers[rand.Intn(len(trainers))]
+	log.Info("Will trade with ", tradeWith)
+	c.StartTradeWithPlayer(tradeWith)
+
+	return nil
+}
+
+// Notification Handlers
 
 func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error {
 	var content notifications.WantsToTradeContent
@@ -143,40 +186,14 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 		return err
 	}
 
-	time.Sleep(10 * time.Second)
-
 	c.tradesClient.JoinTradeLobby(&lobbyId)
 	return nil
 
 }
 
-// Notification Handlers
+func (c *NovaPokemonClient) waitForBattleChallenges() error {
 
-func (c *NovaPokemonClient) StartListeningToNotifications() {
-	for ; ; {
-		channels := c.battlesClient.QueueForBattle()
-		err := autoManageBattle(c, channels)
-		if err != nil {
-			log.Error(err)
-		}
-	}
-}
-
-func (c *NovaPokemonClient) ParseReceivedNotifications() {
 	for {
-		select {
-		case notification := <-c.notificationsChannel:
-			switch notification.Type {
-			case notifications.WantsToTrade:
-				c.WantingTrade(notification)
-			}
-		}
-	}
-}
-
-func waitForBattleChallenges(c *NovaPokemonClient) error {
-
-	for ; ; {
 		notification := <-c.notificationsClient.NotificationsChannel
 		switch notification.Type {
 		case notifications.ChallengeToBattle:

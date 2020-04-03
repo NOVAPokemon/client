@@ -1,27 +1,37 @@
 package main
 
+import (
+	log "github.com/sirupsen/logrus"
+	"net/url"
+)
+
+//
+//func main() {
+//
+//	client := NovaPokemonClient{
+//		Username: requestUsername(),
+//		Password: requestPassword(),
+//	}
+//
+//	client.init()
+//	_ = LoginAndStartAutoBattleQueue(&client)
+//
+//}
+
 func main() {
-
 	client := NovaPokemonClient{
-		Username: requestUsername(),
-		Password: requestPassword(),
-	}
-
-	client.init()
-	_ = LoginAndStartAutoBattleQueue(&client)
-
-}
-
-/*
-func main2() {
-	client := NovaPokemonClient{
-		Username: requestUsername(),
-		Password: requestPassword(),
+		Username: RandomString(20),
+		Password: RandomString(20),
 	}
 	client.init()
 
-	client.Login()
-	err := client.GetAllTokens()
+	err := client.RegisterAndGetTokens()
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	err = client.LoginAndGetTokens()
 	if err != nil {
 		log.Error(err)
 		return
@@ -31,18 +41,9 @@ func main2() {
 		Scheme: "http",
 		Host:   "localhost",
 	}) {
-		log.Info(cookie)
+		log.Info(cookie.Name)
 	}
 
-	trades := client.tradesClient.GetAvailableLobbies()
-	log.Infof("Available Lobbies: %+v", trades)
-
-	if len(trades) == 0 {
-		client.tradesClient.CreateTradeLobby()
-	} else {
-		lobby := trades[0]
-		log.Infof("Joining lobby %s", lobby)
-		client.tradesClient.JoinTradeLobby(lobby.Id)
-	}
+	client.StartListeningToNotifications()
+	client.ParseReceivedNotifications()
 }
-*/
