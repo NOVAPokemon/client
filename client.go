@@ -6,6 +6,7 @@ import (
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/notifications"
+	"github.com/NOVAPokemon/utils/websockets/battles"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math/rand"
@@ -25,23 +26,17 @@ type NovaPokemonClient struct {
 	// storeClient *store.StoreClient // TODO
 
 	notificationsChannel chan *utils.Notification
-
-	jar *cookiejar.Jar
 }
 
 const MaxNotifications = 20
 
 func (c *NovaPokemonClient) init() {
 
-	c.jar, _ = cookiejar.New(nil)
-
 	c.authClient = &clients.AuthClient{
-		Jar: c.jar,
 	}
 
 	c.battlesClient = &clients.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
-		Jar:         c.jar,
 	}
 
 	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort), c.jar)
@@ -49,9 +44,10 @@ func (c *NovaPokemonClient) init() {
 	c.notificationsChannel = make(chan *utils.Notification)
 	addr := fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort)
 
-	c.notificationsClient = clients.NewNotificationClient(addr, c.jar, c.notificationsChannel)
 
-	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), c.jar)
+	c.notificationsClient = clients.NewNotificationClient(addr, c.notificationsChannel)
+
+	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort))
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
@@ -79,7 +75,7 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 		return err
 	}
 
-	err = c.authClient.GetInitialTokens(c.Username)
+	err = c.trainersClient.GetAllTrainerTokens(c.Username)
 
 	if err != nil {
 		log.Error(err)
@@ -87,6 +83,23 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 	}
 
 	return nil
+}
+
+func (c *NovaPokemonClient) LoginAndStartAutoBattleQueue() error {
+	err := c.LoginAndGetTokens()
+
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	for ; ; {
+		channels := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
+		err := autoManageBattle(c, channels)
+		if err != nil {
+			log.Error(err)
+		}
+	}
 }
 
 func (c *NovaPokemonClient) LoginAndChallegePlayer(otherPlayer string) error {
@@ -97,7 +110,7 @@ func (c *NovaPokemonClient) LoginAndChallegePlayer(otherPlayer string) error {
 		return err
 	}
 
-	c.battlesClient.ChallengePlayerToBattle(otherPlayer)
+	c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, c.getPokemonsForBattle(), otherPlayer)
 
 	return nil
 }
@@ -186,14 +199,51 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 		return err
 	}
 
-	c.tradesClient.JoinTradeLobby(&lobbyId)
+	time.Sleep(10 * time.Second)
+
+	c.tradesClient.JoinTradeLobby(&lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	return nil
 
 }
 
-func (c *NovaPokemonClient) waitForBattleChallenges() error {
+func (c *NovaPokemonClient) StartAutoBattleQueue() {
+	for ; ; {
+		channels := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
+		err := autoManageBattle(c, channels)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+}
 
+// Notification Handlers
+
+func (c *NovaPokemonClient) ParseReceivedNotifications() {
 	for {
+		select {
+		case notification := <-c.notificationsChannel:
+			switch notification.Type {
+			case notifications.WantsToTrade:
+				c.WantingTrade(notification)
+			}
+		}
+	}
+}
+
+func (c *NovaPokemonClient) getPokemonsForBattle() map[string]string {
+	var pokemonTkns = make(map[string]string, battles.PokemonsPerBattle)
+	for k, v := range c.trainersClient.PokemonTokens {
+		pokemonTkns[k] = v
+		if len(pokemonTkns) == battles.PokemonsPerBattle {
+			break
+		}
+	}
+	return pokemonTkns
+}
+
+func waitForBattleChallenges(c *NovaPokemonClient) error {
+
+	for ; ; {
 		notification := <-c.notificationsClient.NotificationsChannel
 		switch notification.Type {
 		case notifications.ChallengeToBattle:
@@ -203,8 +253,7 @@ func (c *NovaPokemonClient) waitForBattleChallenges() error {
 				log.Error(err)
 				return err
 			}
-			c.battlesClient.AcceptChallenge(battleId)
+			c.battlesClient.AcceptChallenge(c.authClient.AuthToken, c.getPokemonsForBattle(), battleId)
 		}
 	}
-
 }

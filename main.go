@@ -25,6 +25,7 @@ func main() {
 	}
 	client.init()
 
+
 	err := client.RegisterAndGetTokens()
 	if err != nil {
 		log.Error(err)
@@ -47,3 +48,4 @@ func main() {
 	client.StartListeningToNotifications()
 	client.ParseReceivedNotifications()
 }
+

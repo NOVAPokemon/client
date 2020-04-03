@@ -59,15 +59,8 @@ func RandomString(n int) string {
 	return string(s)
 }
 
-// TODO temporary
-func requestClientNumber() int {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter client number: ")
-	text, _ := reader.ReadString('\n')
-	num, err := strconv.Atoi(strings.TrimSpace(text))
-	if err != nil {
-		log.Error(err)
-		return 0
-	}
-	return num
+func GetRandomElementsFromArray(arr []interface{}, count int) []interface{} {
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(arr), func(i, j int) { arr[i], arr[j] = arr[j], arr[i] })
+	return arr[:count]
 }
