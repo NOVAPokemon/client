@@ -49,7 +49,12 @@ func (c *NovaPokemonClient) init() {
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
 	lobbyId := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	log.Info("Created lobby ", lobbyId)
-	c.tradesClient.JoinTradeLobby(lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+
+	newItemTokens := c.tradesClient.JoinTradeLobby(lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+
+	if err := c.trainersClient.SetItemsToken(*newItemTokens); err != nil {
+		log.Error(err)
+	}
 }
 
 func (c *NovaPokemonClient) RegisterAndGetTokens() error {
@@ -132,7 +137,7 @@ func (c *NovaPokemonClient) StartListeningToNotifications() {
 }
 
 func (c *NovaPokemonClient) ParseReceivedNotifications() {
-	waitDuration := 5 * time.Second
+	waitDuration := 10 * time.Second
 
 	waitForNotificationTimer := time.NewTimer(waitDuration)
 
@@ -146,12 +151,11 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 				if err != nil {
 					log.Error(err)
 				}
-			}
-		default:
-			err := c.startAutoTrade()
-			if err != nil {
 				return
 			}
+		default:
+			_ = c.startAutoTrade()
+			return
 		}
 		waitForNotificationTimer.Reset(waitDuration)
 	}
