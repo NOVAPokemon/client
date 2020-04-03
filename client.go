@@ -51,9 +51,9 @@ func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
 	log.Infof("Available Lobbies: %+v", trades)
 
 	if len(trades) == 0 {
-		lobbyId := c.tradesClient.CreateTradeLobby(playerId)
+		lobbyId := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 		log.Info(lobbyId)
-		c.tradesClient.JoinTradeLobby(lobbyId)
+		c.tradesClient.JoinTradeLobby(lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	} else {
 		return
 
@@ -155,7 +155,7 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 
 	time.Sleep(10 * time.Second)
 
-	c.tradesClient.JoinTradeLobby(&lobbyId)
+	c.tradesClient.JoinTradeLobby(&lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	return nil
 
 }
