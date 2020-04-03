@@ -194,8 +194,6 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 		return err
 	}
 
-	time.Sleep(10 * time.Second)
-
 	c.tradesClient.JoinTradeLobby(&lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	return nil
 
