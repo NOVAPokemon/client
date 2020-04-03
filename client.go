@@ -124,6 +124,8 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 
 	waitForNotificationTimer := time.NewTimer(waitDuration)
 
+	defer c.validateItemTokens()
+
 	for {
 		<-waitForNotificationTimer.C
 		select {
@@ -138,7 +140,10 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 				return
 			}
 		default:
-			_ = c.startAutoTrade()
+			err := c.startAutoTrade()
+			if err != nil {
+				log.Error(err)
+			}
 			return
 		}
 		waitForNotificationTimer.Reset(waitDuration)
@@ -148,7 +153,6 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 func (c *NovaPokemonClient) startAutoTrade() error {
 	trainers, err := c.notificationsClient.GetOthersListening(c.Username, c.authClient.AuthToken)
 	if err != nil {
-		log.Error(err)
 		return err
 	}
 
@@ -164,6 +168,16 @@ func (c *NovaPokemonClient) startAutoTrade() error {
 	c.StartTradeWithPlayer(tradeWith)
 
 	return nil
+}
+
+func (c *NovaPokemonClient) validateItemTokens() {
+	if valid, err := c.trainersClient.VerifyItems(c.Username, c.trainersClient.ItemsClaims.ItemsHash, c.authClient.AuthToken); err != nil {
+		log.Error(err)
+	} else if !*valid {
+		log.Error("ended up with wrong items")
+	} else {
+		log.Info("New item tokens are correct")
+	}
 }
 
 // Notification Handlers
