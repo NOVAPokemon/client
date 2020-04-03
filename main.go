@@ -2,7 +2,6 @@ package main
 
 import (
 	log "github.com/sirupsen/logrus"
-	"net/url"
 )
 
 //
@@ -36,13 +35,6 @@ func main() {
 	if err != nil {
 		log.Error(err)
 		return
-	}
-
-	for _, cookie := range client.jar.Cookies(&url.URL{
-		Scheme: "http",
-		Host:   "localhost",
-	}) {
-		log.Info(cookie.Name)
 	}
 
 	client.StartListeningToNotifications()

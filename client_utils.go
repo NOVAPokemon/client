@@ -4,10 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/NOVAPokemon/utils/clients"
-	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
