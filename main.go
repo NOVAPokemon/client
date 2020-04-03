@@ -24,14 +24,7 @@ func main() {
 	}
 	client.init()
 
-
 	err := client.RegisterAndGetTokens()
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	err = client.LoginAndGetTokens()
 	if err != nil {
 		log.Error(err)
 		return
@@ -40,4 +33,3 @@ func main() {
 	client.StartListeningToNotifications()
 	client.ParseReceivedNotifications()
 }
-

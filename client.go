@@ -60,7 +60,7 @@ func (c *NovaPokemonClient) RegisterAndGetTokens() error {
 		return err
 	}
 
-	return nil
+	return c.LoginAndGetTokens()
 }
 
 func (c *NovaPokemonClient) LoginAndGetTokens() error {
@@ -78,23 +78,6 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 	}
 
 	return nil
-}
-
-func (c *NovaPokemonClient) LoginAndStartAutoBattleQueue() error {
-	err := c.LoginAndGetTokens()
-
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	for ; ; {
-		channels := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
-		err := autoManageBattle(c, channels)
-		if err != nil {
-			log.Error(err)
-		}
-	}
 }
 
 func (c *NovaPokemonClient) LoginAndChallegePlayer(otherPlayer string) error {
@@ -148,7 +131,7 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 				}
 			}
 		default:
-			err := c.startAutoTrade()
+			err := c.StartAutoBattleQueue()
 			if err != nil {
 				return
 			}
@@ -199,14 +182,22 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 
 }
 
-func (c *NovaPokemonClient) StartAutoBattleQueue() {
-	for ; ; {
-		channels := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
-		err := autoManageBattle(c, channels)
-		if err != nil {
-			log.Error(err)
-		}
+func (c *NovaPokemonClient) StartAutoBattleQueue() error {
+
+	channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
+
+	if err != nil {
+		log.Error(err)
+		return err
 	}
+
+	err = autoManageBattle(c, *channels)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) getPokemonsForBattle() map[string]string {
