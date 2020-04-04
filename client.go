@@ -6,6 +6,7 @@ import (
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/notifications"
+	"github.com/NOVAPokemon/utils/tokens"
 	"github.com/NOVAPokemon/utils/websockets/battles"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -203,39 +204,52 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 
-	channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken, c.getPokemonsForBattle())
+	pokemonsToUse := c.getPokemonsForBattle()
+	channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken, pokemonsToUse)
 
 	if err != nil {
 		log.Error(err)
 		return err
+		}
+
+		pokemons := make(map[string]*utils.Pokemon, len(pokemonsToUse))
+		for pokemonId, tknstr := range pokemonsToUse {
+			decodedToken, err := tokens.ExtractPokemonToken(tknstr)
+
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+			pokemons[pokemonId] = &decodedToken.Pokemon
+		}
+
+		err = autoManageBattle(*channels, pokemons)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
+
+		return nil
 	}
 
-	err = autoManageBattle(c, *channels)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	return nil
-}
-
-func (c *NovaPokemonClient) getPokemonsForBattle() map[string]string {
-	var pokemonTkns = make(map[string]string, battles.PokemonsPerBattle)
-	for k, v := range c.trainersClient.PokemonTokens {
+	func (c *NovaPokemonClient) getPokemonsForBattle() map[string]string {
+		var pokemonTkns = make(map[string]string, battles.PokemonsPerBattle)
+		for k, v := range c.trainersClient.PokemonTokens {
 		pokemonTkns[k] = v
 		if len(pokemonTkns) == battles.PokemonsPerBattle {
-			break
-		}
+		break
 	}
-	return pokemonTkns
-}
+	}
+		return pokemonTkns
+	}
 
-func (c *NovaPokemonClient) waitForBattleChallenges() error {
+	func (c *NovaPokemonClient) waitForBattleChallenges() error {
 
-	for ; ; {
+		for ; ; {
 		notification := <-c.notificationsClient.NotificationsChannel
 		switch notification.Type {
-		case notifications.ChallengeToBattle:
+	case notifications.ChallengeToBattle:
 			log.Info("I was challenged to a battle")
 			battleId, err := primitive.ObjectIDFromHex(string(notification.Content))
 			if err != nil {
