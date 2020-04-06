@@ -106,23 +106,6 @@ func (c *NovaPokemonClient) ChallegePlayer(otherPlayer string) error {
 	return autoManageBattle(*channels, c.getPokemonsForBattle())
 }
 
-func (c *NovaPokemonClient) LoginAndAcceptChallenges() {
-	err := c.LoginAndGetTokens()
-
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	c.StartListeningToNotifications()
-	err = c.waitForBattleChallenges()
-
-	if err != nil {
-		log.Error(err)
-		return
-	}
-}
-
 func (c *NovaPokemonClient) StartListeningToNotifications() {
 	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
 }
@@ -173,7 +156,24 @@ func (c *NovaPokemonClient) Finish() {
 	<-c.receiveFinish
 }
 
-// Trades
+func (c *NovaPokemonClient) startAutoChallenge() error {
+	trainers, err := c.notificationsClient.GetOthersListening(c.authClient.AuthToken)
+	if err != nil {
+		return err
+	}
+
+	if len(trainers) == 0 {
+		log.Warn("No one to trade with")
+		return nil
+	} else {
+		log.Infof("got %d trainers", len(trainers))
+	}
+
+	challengePlayer := trainers[rand.Intn(len(trainers))]
+	log.Info("Will trade with ", challengePlayer)
+
+	return c.ChallegePlayer(challengePlayer)
+}
 
 func (c *NovaPokemonClient) startAutoTrade() error {
 	trainers, err := c.notificationsClient.GetOthersListening(c.authClient.AuthToken)
