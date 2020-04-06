@@ -25,12 +25,13 @@ type NovaPokemonClient struct {
 	// storeClient *store.StoreClient // TODO
 
 	notificationsChannel chan *utils.Notification
+	emitFinish           chan struct{}
+	receiveFinish        chan bool
 }
 
 func (c *NovaPokemonClient) init() {
 
-	c.authClient = &clients.AuthClient{
-	}
+	c.authClient = &clients.AuthClient{}
 
 	c.battlesClient = &clients.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
@@ -39,6 +40,9 @@ func (c *NovaPokemonClient) init() {
 	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort))
 
 	c.notificationsChannel = make(chan *utils.Notification)
+	c.emitFinish = make(chan struct{})
+	c.receiveFinish = make(chan bool)
+
 	addr := fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort)
 
 	c.notificationsClient = clients.NewNotificationClient(addr, c.notificationsChannel)
@@ -50,10 +54,16 @@ func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
 	lobbyId := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	log.Info("Created lobby ", lobbyId)
 
+	c.JoinTradeWithPlayer(lobbyId)
+}
+
+func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID) {
 	newItemTokens := c.tradesClient.JoinTradeLobby(lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 
-	if err := c.trainersClient.SetItemsToken(*newItemTokens); err != nil {
-		log.Error(err)
+	if newItemTokens != nil {
+		if err := c.trainersClient.SetItemsToken(*newItemTokens); err != nil {
+			log.Error(err)
+		}
 	}
 }
 
@@ -106,7 +116,7 @@ func (c *NovaPokemonClient) LoginAndAcceptChallenges() {
 		return
 	}
 
-	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken)
+	c.StartListeningToNotifications()
 	err = c.waitForBattleChallenges()
 
 	if err != nil {
@@ -116,7 +126,7 @@ func (c *NovaPokemonClient) LoginAndAcceptChallenges() {
 }
 
 func (c *NovaPokemonClient) StartListeningToNotifications() {
-	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken)
+	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
 }
 
 func (c *NovaPokemonClient) ParseReceivedNotifications() {
@@ -150,8 +160,17 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 	}
 }
 
+func (c *NovaPokemonClient) Finish() {
+	log.Warn("Finishing client...")
+	close(c.emitFinish)
+
+	<-c.receiveFinish
+}
+
+// Trades
+
 func (c *NovaPokemonClient) startAutoTrade() error {
-	trainers, err := c.notificationsClient.GetOthersListening(c.Username, c.authClient.AuthToken)
+	trainers, err := c.notificationsClient.GetOthersListening(c.authClient.AuthToken)
 	if err != nil {
 		return err
 	}
@@ -196,9 +215,9 @@ func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error
 		return err
 	}
 
-	c.tradesClient.JoinTradeLobby(&lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
-	return nil
+	c.JoinTradeWithPlayer(&lobbyId)
 
+	return nil
 }
 
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
