@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
+	"github.com/NOVAPokemon/utils/tokens"
 	"github.com/NOVAPokemon/utils/websockets"
 	"github.com/NOVAPokemon/utils/websockets/battles"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"os"
 	"strings"
@@ -30,118 +31,142 @@ func requestPassword() string {
 	return strings.TrimSpace(text)
 }
 
-func autoManageBattle(channels clients.BattleChannels, pokemons map[string]*utils.Pokemon) error {
+func autoManageBattle(channels clients.BattleChannels, pokemonTkns []string) error {
 
-	timer := time.NewTimer(2 * time.Second)
+	pokemons := make(map[string]*utils.Pokemon, len(pokemonTkns))
+	for _, tknstr := range pokemonTkns {
+		decodedToken, err := tokens.ExtractPokemonToken(tknstr)
 
-	selectedPokemon, err := getAlivePokemon(pokemons)
+		if err != nil {
+			log.Error(err)
+			return err
+		}
 
-	if err != nil {
-		logrus.Error("No pokemons alive")
-		return err
+		pokemons[decodedToken.Pokemon.Id.Hex()] = &decodedToken.Pokemon
 	}
 
-	logrus.Infof("Sent selection message")
-	toSend := websockets.Message{MsgType: battles.SELECT_POKEMON, MsgArgs: []string{selectedPokemon.Id.Hex()}}
-	websockets.SendMessage(toSend, channels.OutChannel)
-	timer.Reset(2 * time.Second)
+	timer := time.NewTimer(2 * time.Second)
+	var started = false
+	var selectedPokemon *utils.Pokemon
+	var adversaryPokemon *utils.Pokemon
 
 	for ; ; {
 
 		select {
 
 		case <-channels.FinishChannel:
-			logrus.Info("Automatic battle finished")
+			log.Info("Automatic battle finished")
 			return nil
-
-		case <-timer.C:
-			logrus.Info("Attacking...")
-			toSend := websockets.Message{MsgType: battles.ATTACK, MsgArgs: []string{}}
-			websockets.SendMessage(toSend, channels.OutChannel)
-			timer.Reset(2 * time.Second)
 
 
 		case msg := <-channels.InChannel:
 			msgParsed, err := websockets.ParseMessage(msg)
-
 			if err != nil {
-				logrus.Error(err)
+				log.Error(err)
 				return err
 			}
-
 			switch msgParsed.MsgType {
+
+			case battles.START:
+				started = true
 
 			case battles.ERROR:
 				switch msgParsed.MsgArgs[0] {
 
 				case battles.ErrPokemonNoHP:
-					selectedPokemon, err = getAlivePokemon(pokemons)
-					if err != nil {
-						logrus.Error("No pokemons alive")
-						return err
-					}
-					toSend := websockets.Message{MsgType: battles.SELECT_POKEMON, MsgArgs: []string{selectedPokemon.Id.Hex()}}
-					websockets.SendMessage(toSend, channels.OutChannel)
-
+					_, _ = changeActivePokemon(pokemons, channels.OutChannel)
 				case battles.ErrPokemonSelectionPhase:
-					selectedPokemon, err = getAlivePokemon(pokemons)
-					if err != nil {
-						logrus.Error("No pokemons alive")
-						return err
-					}
-					toSend := websockets.Message{MsgType: battles.SELECT_POKEMON, MsgArgs: []string{selectedPokemon.Id.Hex()}}
-					websockets.SendMessage(toSend, channels.OutChannel)
-
+					_, _ = changeActivePokemon(pokemons, channels.OutChannel)
 				case battles.ErrNoPokemonSelected:
-					selectedPokemon, err = getAlivePokemon(pokemons)
-					if err != nil {
-						logrus.Error("No pokemons alive")
-						return err
-					}
-					toSend := websockets.Message{MsgType: battles.SELECT_POKEMON, MsgArgs: []string{selectedPokemon.Id.Hex()}}
-					websockets.SendMessage(toSend, channels.OutChannel)
-
+					selectedPokemon = nil
 				case battles.ErrInvalidPokemonSelected:
-					selectedPokemon, err = getAlivePokemon(pokemons)
-					if err != nil {
-						logrus.Error("No pokemons alive")
-						return err
-					}
-					toSend := websockets.Message{MsgType: battles.SELECT_POKEMON, MsgArgs: []string{selectedPokemon.Id.Hex()}}
-					websockets.SendMessage(toSend, channels.OutChannel)
-
+					selectedPokemon = nil
 				default:
-					logrus.Error(msgParsed.MsgArgs[0])
+					log.Error(msgParsed.MsgArgs[0])
 				}
+
 			case battles.STATUS:
-
-			case battles.UPDATE_PLAYER:
-
-			case battles.UPDATE_ADVERSARY:
-
-			case battles.SELECT_POKEMON:
-
-			case battles.UPDATE_ADVERSARY_POKEMON:
+				log.Infof(msgParsed.MsgArgs[0])
 
 			case battles.UPDATE_PLAYER_POKEMON:
 				pokemon := &utils.Pokemon{}
-				fmt.Println(msgParsed)
-				logrus.Infof("Decoding : %+v", msgParsed.MsgArgs[0])
-
 				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
-
 				if err != nil {
-					logrus.Error("Error decoding pokemon")
+					log.Error("Error decoding player pokemon")
 					return err
 				}
-
 				selectedPokemon = pokemon
+
+			case battles.UPDATE_ADVERSARY_POKEMON:
+				pokemon := &utils.Pokemon{}
+				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
+				if err != nil {
+					log.Error("Error decoding adversary pokemon")
+					return err
+				}
+				adversaryPokemon = pokemon
+				log.Infof("Adversary pokemon:\tID:%s, HP: %d, Species: %s", adversaryPokemon.Id.Hex(),
+					adversaryPokemon.HP,
+					adversaryPokemon.Species)
+
 			case battles.FINISH:
+				log.Warn("Battle finished!")
 				return nil
 			}
+		case <-timer.C:
+			// if the battle hasnt started but the pokemon is already picked, do nothing
+			log.Info(started, selectedPokemon)
+			if started || selectedPokemon == nil {
+				err := doNextBattleMove(selectedPokemon, pokemons, channels.OutChannel)
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+			} else {
+				log.Info("Waiting on other player")
+			}
+
+			cooldownDuration := time.Duration(RandInt(1500, 2500))
+			timer.Reset(cooldownDuration * time.Millisecond)
 		}
 	}
+}
 
+func doNextBattleMove(selectedPokemon *utils.Pokemon, pokemons map[string]*utils.Pokemon, outChannel chan *string) error {
+
+	if selectedPokemon == nil || selectedPokemon.HP == 0 {
+		newPokemon, err := changeActivePokemon(pokemons, outChannel)
+
+		if err != nil {
+			return err
+		}
+
+		log.Infof("Selected pokemon: %s , HP:%d, Damage:%d, Species:%s ",
+			newPokemon.Id.Hex(),
+			newPokemon.HP,
+			newPokemon.Damage,
+			newPokemon.Species)
+
+		return nil
+	}
+
+	log.Info("Attacking...")
+	toSend := websockets.Message{MsgType: battles.ATTACK, MsgArgs: []string{}}
+	websockets.SendMessage(toSend, outChannel)
+
+	return nil
+}
+
+func changeActivePokemon(pokemons map[string]*utils.Pokemon, outChannel chan *string) (*utils.Pokemon, error) {
+
+	nextPokemon, err := getAlivePokemon(pokemons)
+	if err != nil {
+		log.Error("No pokemons alive")
+		return nil, err
+	}
+	toSend := websockets.Message{MsgType: battles.SELECT_POKEMON, MsgArgs: []string{nextPokemon.Id.Hex()}}
+	websockets.SendMessage(toSend, outChannel)
+	return nextPokemon, nil
 }
 
 func getAlivePokemon(pokemons map[string]*utils.Pokemon) (*utils.Pokemon, error) {
@@ -168,8 +193,7 @@ func RandomString(n int) string {
 	return string(s)
 }
 
-func GetRandomElementsFromArray(arr []interface{}, count int) []interface{} {
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(arr), func(i, j int) { arr[i], arr[j] = arr[j], arr[i] })
-	return arr[:count]
+func RandInt(min int, max int) int {
+	rand.Seed(time.Now().UTC().UnixNano())
+	return min + rand.Intn(max-min)
 }
