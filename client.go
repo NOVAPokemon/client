@@ -22,7 +22,7 @@ type NovaPokemonClient struct {
 	tradesClient        *clients.TradeLobbyClient
 	notificationsClient *clients.NotificationClient
 	trainersClient      *clients.TrainersClient
-	// storeClient *store.StoreClient // TODO
+	storeClient         *clients.StoreClient
 
 	notificationsChannel chan *utils.Notification
 	emitFinish           chan struct{}
@@ -30,24 +30,18 @@ type NovaPokemonClient struct {
 }
 
 func (c *NovaPokemonClient) init() {
-
-	c.authClient = &clients.AuthClient{}
-
-	c.battlesClient = &clients.BattleLobbyClient{
-		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
-	}
-
-	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort))
-
 	c.notificationsChannel = make(chan *utils.Notification)
 	c.emitFinish = make(chan struct{})
 	c.receiveFinish = make(chan bool)
 
-	addr := fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort)
-
-	c.notificationsClient = clients.NewNotificationClient(addr, c.notificationsChannel)
-
+	c.authClient = &clients.AuthClient{}
+	c.battlesClient = &clients.BattleLobbyClient{
+		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
+	}
+	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort))
+	c.notificationsClient = clients.NewNotificationClient(fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort), c.notificationsChannel)
 	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort))
+	c.storeClient = clients.NewStoreClient(fmt.Sprintf("%s:%d", utils.Host, utils.StorePort))
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
@@ -95,7 +89,7 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 	return nil
 }
 
-func (c *NovaPokemonClient) ChallegePlayer(otherPlayer string) error {
+func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 
 	channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, c.getPokemonsForBattle(), otherPlayer)
 
@@ -110,7 +104,7 @@ func (c *NovaPokemonClient) StartListeningToNotifications() {
 	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
 }
 
-func (c *NovaPokemonClient) ParseReceivedNotifications() {
+func (c *NovaPokemonClient) MainLoop() {
 	waitDuration := 10 * time.Second
 
 	waitForNotificationTimer := time.NewTimer(waitDuration)
@@ -122,30 +116,58 @@ func (c *NovaPokemonClient) ParseReceivedNotifications() {
 		<-waitForNotificationTimer.C
 		select {
 		case notification := <-c.notificationsChannel:
-			switch notification.Type {
-			case notifications.WantsToTrade:
-				err := c.WantingTrade(notification)
-				if err != nil {
-					log.Error(err)
-				}
-
-				return
-			case notifications.ChallengeToBattle:
-				err := c.handleChallengeNotification(notification)
-				if err != nil {
-					log.Error(err)
-				}
-				return
-			}
-
+			c.HandleNotifications(notification)
 		default:
-			err := c.startAutoChallenge()
+			err := c.startAutoTrade()
 			if err != nil {
 				log.Error(err)
+				continue
 			}
+
+			c.BuyRandomItem()
+
 			return
 		}
-		//waitForNotificationTimer.Reset(waitDuration)
+		waitForNotificationTimer.Reset(waitDuration)
+	}
+
+}
+
+func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification) {
+	switch notification.Type {
+	case notifications.WantsToTrade:
+		err := c.WantingTrade(notification)
+		if err != nil {
+			log.Error(err)
+		}
+
+		return
+	case notifications.ChallengeToBattle:
+		err := c.handleChallengeNotification(notification)
+		if err != nil {
+			log.Error(err)
+		}
+		return
+	}
+}
+
+func (c *NovaPokemonClient) BuyRandomItem() {
+	items, err := c.storeClient.GetItems(c.authClient.AuthToken)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	randomItem := items[rand.Intn(len(items))]
+	itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
+	if err != nil {
+		log.Error(err)
+	}
+
+	err = c.trainersClient.SetItemsToken(itemsToken)
+	if err != nil {
+		log.Error(err)
+		return
 	}
 }
 
@@ -172,7 +194,7 @@ func (c *NovaPokemonClient) startAutoChallenge() error {
 	challengePlayer := trainers[rand.Intn(len(trainers))]
 	log.Info("Will trade with ", challengePlayer)
 
-	return c.ChallegePlayer(challengePlayer)
+	return c.ChallengePlayer(challengePlayer)
 }
 
 func (c *NovaPokemonClient) startAutoTrade() error {
@@ -193,32 +215,6 @@ func (c *NovaPokemonClient) startAutoTrade() error {
 	c.StartTradeWithPlayer(tradeWith)
 
 	return nil
-}
-
-func (c *NovaPokemonClient) validateItemTokens() {
-	if valid, err := c.trainersClient.VerifyItems(c.Username, c.trainersClient.ItemsClaims.ItemsHash, c.authClient.AuthToken); err != nil {
-		log.Error(err)
-	} else if !*valid {
-		log.Error("ended up with wrong items")
-	} else {
-		log.Info("New item tokens are correct")
-	}
-}
-
-func (c *NovaPokemonClient) validatePokemonTokens() {
-
-	hashes := make(map[string][]byte, len(c.trainersClient.PokemonClaims))
-	for _, tkn := range c.trainersClient.PokemonClaims {
-		hashes[tkn.Pokemon.Id.Hex()] = tkn.PokemonHash
-	}
-
-	if valid, err := c.trainersClient.VerifyPokemons(c.Username, hashes, c.authClient.AuthToken); err != nil {
-		log.Error(err)
-	} else if !*valid {
-		log.Error("ended up with wrong pokemons")
-	} else {
-		log.Info("New pokemon tokens are correct")
-	}
 }
 
 // Notification Handlers
@@ -293,4 +289,30 @@ func (c *NovaPokemonClient) getPokemonsForBattle() []string {
 	}
 
 	return pokemonTkns
+}
+
+func (c *NovaPokemonClient) validateItemTokens() {
+	if valid, err := c.trainersClient.VerifyItems(c.Username, c.trainersClient.ItemsClaims.ItemsHash, c.authClient.AuthToken); err != nil {
+		log.Error(err)
+	} else if !*valid {
+		log.Error("ended up with wrong items")
+	} else {
+		log.Info("New item tokens are correct")
+	}
+}
+
+func (c *NovaPokemonClient) validatePokemonTokens() {
+
+	hashes := make(map[string][]byte, len(c.trainersClient.PokemonClaims))
+	for _, tkn := range c.trainersClient.PokemonClaims {
+		hashes[tkn.Pokemon.Id.Hex()] = tkn.PokemonHash
+	}
+
+	if valid, err := c.trainersClient.VerifyPokemons(c.Username, hashes, c.authClient.AuthToken); err != nil {
+		log.Error(err)
+	} else if !*valid {
+		log.Error("ended up with wrong pokemons")
+	} else {
+		log.Info("New pokemon tokens are correct")
+	}
 }

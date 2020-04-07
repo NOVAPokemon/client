@@ -31,6 +31,6 @@ func main() {
 	}
 
 	client.StartListeningToNotifications()
-	client.ParseReceivedNotifications()
+	client.MainLoop()
 	client.Finish()
 }
