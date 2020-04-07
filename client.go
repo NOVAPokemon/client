@@ -91,13 +91,14 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 
 func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 
-	channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, c.getPokemonsForBattle(), otherPlayer)
+	pokemonsForBattle := c.getPokemonsForBattle()
+	channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, pokemonsForBattle, otherPlayer)
 
 	if err != nil {
 		return err
 	}
 
-	return autoManageBattle(*channels, c.getPokemonsForBattle())
+	return autoManageBattle(c.trainersClient, *channels, pokemonsForBattle)
 }
 
 func (c *NovaPokemonClient) StartListeningToNotifications() {
@@ -252,7 +253,7 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 		return err
 	}
 
-	return autoManageBattle(*channels, pokemonsForBattle)
+	return autoManageBattle(c.trainersClient, *channels, pokemonsForBattle)
 }
 
 // HELPER FUNCTIONS
@@ -271,7 +272,7 @@ func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 		log.Error(err)
 		return err
 	}
-	err = autoManageBattle(*channels, pokemonsToUse)
+	err = autoManageBattle(c.trainersClient, *channels, pokemonsToUse)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -284,10 +285,14 @@ func (c *NovaPokemonClient) getPokemonsForBattle() []string {
 
 	var pokemonTkns = make([]string, battles.PokemonsPerBattle)
 
-	for i := 0; i < len(c.trainersClient.PokemonTokens) && i < battles.PokemonsPerBattle; i++ {
-		pokemonTkns[i] = c.trainersClient.PokemonTokens[i]
+	i := 0
+	for _, tkn := range c.trainersClient.PokemonTokens {
+		if i == battles.PokemonsPerBattle {
+			break
+		}
+		pokemonTkns[i] = tkn
+		i++
 	}
-
 	return pokemonTkns
 }
 

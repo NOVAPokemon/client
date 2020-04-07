@@ -31,7 +31,7 @@ func requestPassword() string {
 	return strings.TrimSpace(text)
 }
 
-func autoManageBattle(channels clients.BattleChannels, pokemonTkns []string) error {
+func autoManageBattle(trainersClient *clients.TrainersClient, channels clients.BattleChannels, pokemonTkns []string) error {
 
 	pokemons := make(map[string]*utils.Pokemon, len(pokemonTkns))
 	for _, tknstr := range pokemonTkns {
@@ -109,10 +109,31 @@ func autoManageBattle(channels clients.BattleChannels, pokemonTkns []string) err
 					adversaryPokemon.HP,
 					adversaryPokemon.Species)
 
+			case battles.SET_TOKEN:
+				pokemonTkns = msgParsed.MsgArgs
+				for _, tkn := range pokemonTkns {
+
+					if len(tkn) == 0 {
+						continue
+					}
+
+					log.Info(tkn)
+					decodedToken, err := tokens.ExtractPokemonToken(tkn)
+					if err != nil {
+						log.Error(err)
+						continue
+					}
+					trainersClient.PokemonClaims[decodedToken.Pokemon.Id.Hex()] = decodedToken
+					trainersClient.PokemonTokens[decodedToken.Pokemon.Id.Hex()] = tkn
+				}
+
+				log.Warn("Updated Token!")
+
 			case battles.FINISH:
 				log.Warn("Battle finished!")
 				return nil
 			}
+
 		case <-timer.C:
 			// if the battle hasnt started but the pokemon is already picked, do nothing
 			log.Info(started, selectedPokemon)
