@@ -18,6 +18,8 @@ import (
 //}
 
 func main() {
+	writeAutoRunConfigFile(&Actions{Battle: 0, Trade:0, Store:0, Catch:0})
+
 	client := NovaPokemonClient{
 		Username: RandomString(20),
 		Password: RandomString(20),
