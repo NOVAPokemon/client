@@ -107,6 +107,10 @@ func (c *NovaPokemonClient) StartListeningToNotifications() {
 	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
 }
 
+func (c *NovaPokemonClient) StartUpdatingLocation() {
+	go c.trainersClient.StartLocationUpdates(c.authClient.AuthToken)
+}
+
 func (c *NovaPokemonClient) MainLoop() {
 	waitDuration := 10 * time.Second
 
@@ -121,7 +125,8 @@ func (c *NovaPokemonClient) MainLoop() {
 		case notification := <-c.notificationsChannel:
 			c.HandleNotifications(notification)
 		default:
-			err := c.startAutoTrade()
+
+			err := c.StartAutoBattleQueue()
 			if err != nil {
 				log.Error(err)
 				continue
