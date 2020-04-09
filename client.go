@@ -23,6 +23,7 @@ type NovaPokemonClient struct {
 	notificationsClient *clients.NotificationClient
 	trainersClient      *clients.TrainersClient
 	storeClient         *clients.StoreClient
+	generatorClient     *clients.GeneratorClient
 
 	notificationsChannel chan *utils.Notification
 	emitFinish           chan struct{}
@@ -42,6 +43,7 @@ func (c *NovaPokemonClient) init() {
 	c.notificationsClient = clients.NewNotificationClient(fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort), c.notificationsChannel)
 	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort))
 	c.storeClient = clients.NewStoreClient(fmt.Sprintf("%s:%d", utils.Host, utils.StorePort))
+	c.generatorClient = clients.NewGeneratorClient(fmt.Sprintf("%s:%d", utils.Host, utils.GeneratorPort))
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
@@ -127,6 +129,8 @@ func (c *NovaPokemonClient) MainLoop() {
 
 			c.BuyRandomItem()
 
+			c.CatchWildPokemon()
+
 			return
 		}
 		waitForNotificationTimer.Reset(waitDuration)
@@ -170,6 +174,26 @@ func (c *NovaPokemonClient) BuyRandomItem() {
 		log.Error(err)
 		return
 	}
+}
+
+func (c *NovaPokemonClient) CatchWildPokemon() {
+	caught, responseHeader, err := c.generatorClient.CatchWildPokemon(c.authClient.AuthToken)
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	if !caught {
+		log.Info("pokemon got away")
+		return
+	}
+
+	if err := c.trainersClient.AppendPokemonToken(responseHeader); err != nil {
+		log.Error(err)
+		return
+	}
+
+	//TODO remove this
+	c.validatePokemonTokens()
 }
 
 func (c *NovaPokemonClient) Finish() {
@@ -307,7 +331,6 @@ func (c *NovaPokemonClient) validateItemTokens() {
 }
 
 func (c *NovaPokemonClient) validatePokemonTokens() {
-
 	hashes := make(map[string][]byte, len(c.trainersClient.PokemonClaims))
 	for _, tkn := range c.trainersClient.PokemonClaims {
 		hashes[tkn.Pokemon.Id.Hex()] = tkn.PokemonHash
