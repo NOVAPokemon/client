@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
@@ -10,7 +12,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math/rand"
-	"time"
+	"os"
+	"strings"
+)
+
+const (
+	battleCmd = 'b'
+	tradeCmd  = 't'
+	storeCmd  = 's'
+	catchCmd  = 'c'
+	noOpCmd   = 'n'
 )
 
 type NovaPokemonClient struct {
@@ -26,12 +37,16 @@ type NovaPokemonClient struct {
 	generatorClient     *clients.GeneratorClient
 
 	notificationsChannel chan *utils.Notification
-	emitFinish           chan struct{}
-	receiveFinish        chan bool
+	operationsChannel    chan rune
+
+	emitFinish    chan struct{}
+	receiveFinish chan bool
 }
 
 func (c *NovaPokemonClient) init() {
 	c.notificationsChannel = make(chan *utils.Notification)
+	c.operationsChannel = make(chan rune)
+
 	c.emitFinish = make(chan struct{})
 	c.receiveFinish = make(chan bool)
 
@@ -112,35 +127,62 @@ func (c *NovaPokemonClient) StartUpdatingLocation() {
 }
 
 func (c *NovaPokemonClient) MainLoop() {
-	waitDuration := 10 * time.Second
-
-	waitForNotificationTimer := time.NewTimer(waitDuration)
-
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
 
+	go c.ReadOperation()
+
 	for {
-		<-waitForNotificationTimer.C
+		fmt.Printf(
+			"%c - auto battle\n"+
+				"%c - auto trade\n"+
+				"%c - buy random item\n"+
+				"%c - try to catch pokemon\n"+
+				"%c - no operation\n",
+			battleCmd, tradeCmd, storeCmd, catchCmd, noOpCmd)
+
 		select {
 		case notification := <-c.notificationsChannel:
 			c.HandleNotifications(notification)
-		default:
-
-			err := c.StartAutoBattleQueue()
+		case operation := <-c.operationsChannel:
+			err := c.TestOperation(operation)
 			if err != nil {
 				log.Error(err)
 				continue
 			}
-
-			c.BuyRandomItem()
-
-			c.CatchWildPokemon()
-
-			return
 		}
-		waitForNotificationTimer.Reset(waitDuration)
 	}
 
+}
+
+func (c *NovaPokemonClient) ReadOperation() {
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		command, err := reader.ReadString('\n')
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		c.operationsChannel <- []rune(strings.TrimSpace(command))[0]
+	}
+}
+
+func (c *NovaPokemonClient) TestOperation(operation rune) error {
+	switch operation {
+	case battleCmd:
+		return c.StartAutoBattleQueue()
+	case tradeCmd:
+		return c.startAutoTrade()
+	case storeCmd:
+		return c.BuyRandomItem()
+	case catchCmd:
+		return c.CatchWildPokemon()
+	case noOpCmd:
+		return nil
+	default:
+		return errors.New("invalid command")
+	}
 }
 
 func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification) {
@@ -159,41 +201,32 @@ func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification
 	}
 }
 
-func (c *NovaPokemonClient) BuyRandomItem() {
+func (c *NovaPokemonClient) BuyRandomItem() error {
 	items, err := c.storeClient.GetItems(c.authClient.AuthToken)
 	if err != nil {
-		log.Error(err)
-		return
+		return err
 	}
 
 	randomItem := items[rand.Intn(len(items))]
 	itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
 	if err != nil {
-		log.Error(err)
+		return err
 	}
 
-	err = c.trainersClient.SetItemsToken(itemsToken)
-	if err != nil {
-		log.Error(err)
-		return
-	}
+	return c.trainersClient.SetItemsToken(itemsToken)
 }
 
-func (c *NovaPokemonClient) CatchWildPokemon() {
+func (c *NovaPokemonClient) CatchWildPokemon() error {
 	caught, responseHeader, err := c.generatorClient.CatchWildPokemon(c.authClient.AuthToken)
 	if err != nil {
-		log.Error(err)
-		return
+		return err
 	}
 	if !caught {
 		log.Info("pokemon got away")
-		return
+		return nil
 	}
 
-	if err := c.trainersClient.AppendPokemonToken(responseHeader); err != nil {
-		log.Error(err)
-		return
-	}
+	return c.trainersClient.AppendPokemonToken(responseHeader)
 }
 
 func (c *NovaPokemonClient) Finish() {
