@@ -33,6 +33,7 @@ func main() {
 	}
 
 	client.StartListeningToNotifications()
+	client.StartUpdatingLocation()
 	client.MainLoop()
 	client.Finish()
 }

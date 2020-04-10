@@ -131,6 +131,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, channels clients.B
 
 			case battles.FINISH:
 				log.Warn("Battle finished!")
+				log.Warnf("Winner: %s", msgParsed.MsgArgs[0])
 				return nil
 			}
 
