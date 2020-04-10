@@ -150,8 +150,6 @@ func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification
 		if err != nil {
 			log.Error(err)
 		}
-
-		return
 	case notifications.ChallengeToBattle:
 		err := c.handleChallengeNotification(notification)
 		if err != nil {
