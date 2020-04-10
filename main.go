@@ -4,7 +4,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-
 //func main() {
 //
 //	client := NovaPokemonClient{
@@ -18,7 +17,7 @@ import (
 //}
 
 func main() {
-	writeAutoRunConfigFile(&Actions{Battle: 0, Trade:0, Store:0, Catch:0})
+	writeAutoRunConfigFile(&Actions{Battle: 0, Trade: 0, Store: 0, Catch: 0})
 
 	client := NovaPokemonClient{
 		Username: RandomString(20),

@@ -30,7 +30,7 @@ func readAutoRunConfigFile() *Actions {
 
 	actions := &Actions{}
 	err = json.Unmarshal(jsonBytes, actions)
-	if err!= nil {
+	if err != nil {
 		log.Error(err)
 		return nil
 	}
