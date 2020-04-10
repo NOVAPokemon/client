@@ -191,9 +191,6 @@ func (c *NovaPokemonClient) CatchWildPokemon() {
 		log.Error(err)
 		return
 	}
-
-	//TODO remove this
-	c.validatePokemonTokens()
 }
 
 func (c *NovaPokemonClient) Finish() {
