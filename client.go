@@ -35,7 +35,7 @@ func (c *NovaPokemonClient) init() {
 	c.emitFinish = make(chan struct{})
 	c.receiveFinish = make(chan bool)
 
-	c.authClient = &clients.AuthClient{}
+	c.authClient = clients.NewAuthClient(fmt.Sprintf("%s:%d", utils.Host, utils.AuthenticationPort))
 	c.battlesClient = &clients.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
 	}
