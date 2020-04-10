@@ -22,6 +22,8 @@ const (
 	storeCmd  = 's'
 	catchCmd  = 'c'
 	noOpCmd   = 'n'
+
+	maxNotificationsBuffered = 10
 )
 
 type NovaPokemonClient struct {
@@ -44,7 +46,7 @@ type NovaPokemonClient struct {
 }
 
 func (c *NovaPokemonClient) init() {
-	c.notificationsChannel = make(chan *utils.Notification)
+	c.notificationsChannel = make(chan *utils.Notification, maxNotificationsBuffered)
 	c.operationsChannel = make(chan rune)
 
 	c.emitFinish = make(chan struct{})
