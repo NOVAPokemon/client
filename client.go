@@ -22,7 +22,7 @@ const (
 	tradeCmd     = 't'
 	storeCmd     = 's'
 	catchCmd     = 'c'
-	noOpCmd      = 'n'
+	exitCmd      = 'e'
 
 	maxNotificationsBuffered = 10
 )
@@ -129,17 +129,19 @@ func (c *NovaPokemonClient) MainLoop() {
 				"%c - auto trade\n"+
 				"%c - buy random item\n"+
 				"%c - try to catch pokemon\n"+
-				"%c - no operation\n",
-			queueCmd, challengeCmd, tradeCmd, storeCmd, catchCmd, noOpCmd)
+				"%c - exit\n",
+			queueCmd, challengeCmd, tradeCmd, storeCmd, catchCmd, exitCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
 			c.HandleNotifications(notification)
 		case operation := <-c.operationsChannel:
-			err := c.TestOperation(operation)
+			exit, err := c.TestOperation(operation)
 			if err != nil {
 				log.Error(err)
 				continue
+			} else if exit {
+				return
 			}
 		}
 	}
@@ -158,22 +160,22 @@ func (c *NovaPokemonClient) ReadOperation() {
 	}
 }
 
-func (c *NovaPokemonClient) TestOperation(operation rune) error {
+func (c *NovaPokemonClient) TestOperation(operation rune) (bool, error) {
 	switch operation {
 	case challengeCmd:
-		return c.startAutoChallenge()
+		return false, c.startAutoChallenge()
 	case queueCmd:
-		return c.StartAutoBattleQueue()
+		return false, c.StartAutoBattleQueue()
 	case tradeCmd:
-		return c.startAutoTrade()
+		return false, c.startAutoTrade()
 	case storeCmd:
-		return c.BuyRandomItem()
+		return false, c.BuyRandomItem()
 	case catchCmd:
-		return c.CatchWildPokemon()
-	case noOpCmd:
-		return nil
+		return false, c.CatchWildPokemon()
+	case exitCmd:
+		return true, nil
 	default:
-		return errors.New("invalid command")
+		return false, errors.New("invalid command")
 	}
 }
 
