@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	battleCmd = 'b'
-	tradeCmd  = 't'
-	storeCmd  = 's'
-	catchCmd  = 'c'
-	noOpCmd   = 'n'
+	challengeCmd = 'b'
+	queueCmd     = 'q'
+	tradeCmd     = 't'
+	storeCmd     = 's'
+	catchCmd     = 'c'
+	noOpCmd      = 'n'
 
 	maxNotificationsBuffered = 10
 )
@@ -108,18 +109,6 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 	return nil
 }
 
-func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
-
-	pokemonsForBattle := c.getPokemonsForBattle()
-	channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, pokemonsForBattle, otherPlayer)
-
-	if err != nil {
-		return err
-	}
-
-	return autoManageBattle(c.trainersClient, *channels, pokemonsForBattle)
-}
-
 func (c *NovaPokemonClient) StartListeningToNotifications() {
 	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
 }
@@ -129,19 +118,19 @@ func (c *NovaPokemonClient) StartUpdatingLocation() {
 }
 
 func (c *NovaPokemonClient) MainLoop() {
+	defer c.validateStatsTokens()
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
-
 	go c.ReadOperation()
-
 	for {
 		fmt.Printf(
-			"%c - auto battle\n"+
+			"%c - queue for battle\n"+
+				"%c - auto challenge\n"+
 				"%c - auto trade\n"+
 				"%c - buy random item\n"+
 				"%c - try to catch pokemon\n"+
 				"%c - no operation\n",
-			battleCmd, tradeCmd, storeCmd, catchCmd, noOpCmd)
+			queueCmd, challengeCmd, tradeCmd, storeCmd, catchCmd, noOpCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
@@ -154,7 +143,6 @@ func (c *NovaPokemonClient) MainLoop() {
 			}
 		}
 	}
-
 }
 
 func (c *NovaPokemonClient) ReadOperation() {
@@ -172,7 +160,9 @@ func (c *NovaPokemonClient) ReadOperation() {
 
 func (c *NovaPokemonClient) TestOperation(operation rune) error {
 	switch operation {
-	case battleCmd:
+	case challengeCmd:
+		return c.startAutoChallenge()
+	case queueCmd:
 		return c.StartAutoBattleQueue()
 	case tradeCmd:
 		return c.startAutoTrade()
@@ -245,7 +235,7 @@ func (c *NovaPokemonClient) startAutoChallenge() error {
 	}
 
 	if len(trainers) == 0 {
-		log.Warn("No one to trade with")
+		log.Warn("No one to challenge")
 		return nil
 	} else {
 		log.Infof("got %d trainers", len(trainers))
@@ -255,6 +245,18 @@ func (c *NovaPokemonClient) startAutoChallenge() error {
 	log.Info("Will trade with ", challengePlayer)
 
 	return c.ChallengePlayer(challengePlayer)
+}
+
+func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
+
+	pokemonsForBattle := c.getPokemonsForBattle()
+	conn, channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, pokemonsForBattle, c.trainersClient.TrainerStatsToken, otherPlayer)
+
+	if err != nil {
+		return err
+	}
+
+	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsForBattle)
 }
 
 func (c *NovaPokemonClient) startAutoTrade() error {
@@ -306,13 +308,13 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 		return err
 	}
 	pokemonsForBattle := c.getPokemonsForBattle()
-	channels, err := c.battlesClient.AcceptChallenge(c.authClient.AuthToken, pokemonsForBattle, battleId)
+	conn, channels, err := c.battlesClient.AcceptChallenge(c.authClient.AuthToken, pokemonsForBattle, c.trainersClient.TrainerStatsToken, battleId)
 
 	if err != nil {
 		return err
 	}
 
-	return autoManageBattle(c.trainersClient, *channels, pokemonsForBattle)
+	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsForBattle)
 }
 
 // HELPER FUNCTIONS
@@ -320,18 +322,13 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 
 	pokemonsToUse := c.getPokemonsForBattle()
-
-	for i, p := range pokemonsToUse {
-		log.Info(i, p)
-	}
-
-	channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken, pokemonsToUse)
+	conn, channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken, pokemonsToUse, c.trainersClient.TrainerStatsToken)
 
 	if err != nil {
 		log.Error(err)
 		return err
 	}
-	err = autoManageBattle(c.trainersClient, *channels, pokemonsToUse)
+	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 	if err != nil {
 		log.Error(err)
 		return err
@@ -362,6 +359,16 @@ func (c *NovaPokemonClient) validateItemTokens() {
 		log.Error("ended up with wrong items")
 	} else {
 		log.Info("New item tokens are correct")
+	}
+}
+
+func (c *NovaPokemonClient) validateStatsTokens() {
+	if valid, err := c.trainersClient.VerifyTrainerStats(c.Username, c.trainersClient.TrainerStatsClaims.TrainerHash, c.authClient.AuthToken); err != nil {
+		log.Error(err)
+	} else if !*valid {
+		log.Error("ended up with wrong stats token")
+	} else {
+		log.Info("New stats token is correct")
 	}
 }
 
