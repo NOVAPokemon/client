@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math/rand"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -46,6 +47,8 @@ type NovaPokemonClient struct {
 	receiveFinish chan bool
 }
 
+var httpCLient = &http.Client{}
+
 func (c *NovaPokemonClient) init() {
 	c.notificationsChannel = make(chan *utils.Notification, maxNotificationsBuffered)
 	c.operationsChannel = make(chan rune)
@@ -59,7 +62,7 @@ func (c *NovaPokemonClient) init() {
 	}
 	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort))
 	c.notificationsClient = clients.NewNotificationClient(fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort), c.notificationsChannel)
-	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort))
+	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), httpCLient)
 	c.storeClient = clients.NewStoreClient(fmt.Sprintf("%s:%d", utils.Host, utils.StorePort))
 	c.generatorClient = clients.NewGeneratorClient(fmt.Sprintf("%s:%d", utils.Host, utils.GeneratorPort))
 }
@@ -142,6 +145,9 @@ func (c *NovaPokemonClient) MainLoop() {
 				continue
 			}
 		}
+		c.validateStatsTokens()
+		c.validatePokemonTokens()
+		c.validateItemTokens()
 	}
 }
 
@@ -200,12 +206,18 @@ func (c *NovaPokemonClient) BuyRandomItem() error {
 	}
 
 	randomItem := items[rand.Intn(len(items))]
-	itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
+	statsToken, itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
 	if err != nil {
 		return err
 	}
 
-	return c.trainersClient.SetItemsToken(itemsToken)
+	err = c.trainersClient.SetItemsToken(itemsToken)
+
+	if err != nil {
+		return err
+	}
+
+	return c.trainersClient.SetTrainerStatsToken(statsToken)
 }
 
 func (c *NovaPokemonClient) CatchWildPokemon() error {
@@ -328,6 +340,7 @@ func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 		log.Error(err)
 		return err
 	}
+
 	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 	if err != nil {
 		log.Error(err)
