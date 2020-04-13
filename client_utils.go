@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
+	"github.com/NOVAPokemon/utils/pokemons"
 	"github.com/NOVAPokemon/utils/tokens"
 	"github.com/NOVAPokemon/utils/websockets"
 	"github.com/NOVAPokemon/utils/websockets/battles"
@@ -35,7 +35,7 @@ func requestPassword() string {
 func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels clients.BattleChannels, pokemonTkns []string) error {
 	defer conn.Close()
 
-	pokemons := make(map[string]*utils.Pokemon, len(pokemonTkns))
+	pokemonsMap := make(map[string]*pokemons.Pokemon, len(pokemonTkns))
 	for _, tknstr := range pokemonTkns {
 		decodedToken, err := tokens.ExtractPokemonToken(tknstr)
 
@@ -43,7 +43,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			log.Error(err)
 			return err
 		}
-		pokemons[decodedToken.Pokemon.Id.Hex()] = &decodedToken.Pokemon
+		pokemonsMap[decodedToken.Pokemon.Id.Hex()] = &decodedToken.Pokemon
 	}
 
 	const timeout = 10 * time.Second
@@ -53,8 +53,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 	var startTime = time.Now()
 	var started = false
-	var selectedPokemon *utils.Pokemon
-	var adversaryPokemon *utils.Pokemon
+	var selectedPokemon *pokemons.Pokemon
+	var adversaryPokemon *pokemons.Pokemon
 
 	go func() {
 		<-expireTimer.C
@@ -73,7 +73,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 		case <-cdTimer.C:
 			// if the battle hasnt started but the pokemon is already picked, do nothing
 			if started {
-				err := doNextBattleMove(selectedPokemon, pokemons, channels.OutChannel)
+				err := doNextBattleMove(selectedPokemon, pokemonsMap, channels.OutChannel)
 				if err != nil {
 					log.Error(err)
 					<-channels.FinishChannel
@@ -114,7 +114,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				}
 
 			case battles.UPDATE_PLAYER_POKEMON:
-				pokemon := &utils.Pokemon{}
+				pokemon := &pokemons.Pokemon{}
 				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
 				if err != nil {
 					log.Error("Error decoding player pokemon")
@@ -126,10 +126,10 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					pokemon.Species)
 
 				selectedPokemon = pokemon
-				pokemons[pokemon.Id.Hex()] = pokemon
+				pokemonsMap[pokemon.Id.Hex()] = pokemon
 
 			case battles.UPDATE_ADVERSARY_POKEMON:
-				pokemon := &utils.Pokemon{}
+				pokemon := &pokemons.Pokemon{}
 				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
 				if err != nil {
 					log.Error("Error decoding adversary pokemon")
@@ -177,7 +177,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 	}
 }
 
-func doNextBattleMove(selectedPokemon *utils.Pokemon, pokemons map[string]*utils.Pokemon, outChannel chan *string) error {
+func doNextBattleMove(selectedPokemon *pokemons.Pokemon, pokemons map[string]*pokemons.Pokemon, outChannel chan *string) error {
 	if selectedPokemon == nil || selectedPokemon.HP == 0 {
 		err := changeActivePokemon(pokemons, outChannel)
 		if err != nil {
@@ -191,7 +191,7 @@ func doNextBattleMove(selectedPokemon *utils.Pokemon, pokemons map[string]*utils
 	return nil
 }
 
-func changeActivePokemon(pokemons map[string]*utils.Pokemon, outChannel chan *string) (error) {
+func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan *string) error {
 	nextPokemon, err := getAlivePokemon(pokemons)
 	if err != nil {
 		log.Error("No pokemons alive")
@@ -205,7 +205,7 @@ func changeActivePokemon(pokemons map[string]*utils.Pokemon, outChannel chan *st
 	return nil
 }
 
-func getAlivePokemon(pokemons map[string]*utils.Pokemon) (*utils.Pokemon, error) {
+func getAlivePokemon(pokemons map[string]*pokemons.Pokemon) (*pokemons.Pokemon, error) {
 
 	for _, v := range pokemons {
 		if v.HP > 0 {
