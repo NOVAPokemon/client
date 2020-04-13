@@ -3,6 +3,7 @@ module github.com/NOVAPokemon/client
 go 1.13
 
 require (
+	github.com/NOVAPokemon/authentication v0.0.7 // indirect
 	github.com/NOVAPokemon/generator v0.0.0-20200408175633-e2bd1b3478fb // indirect
 	github.com/NOVAPokemon/store v0.0.0-20200402234902-75f7792046b7 // indirect
 	github.com/NOVAPokemon/trainers v0.0.3 // indirect

@@ -1,10 +1,13 @@
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
+github.com/NOVAPokemon/authentication v0.0.7 h1:0YXFOgW5U1Y4T6QpeYCkRBFfguXDc05ri6ELceSq6x0=
+github.com/NOVAPokemon/authentication v0.0.7/go.mod h1:gGKnA1dqa8WigjT1AYHYtESgR2eQ5FCzIg105JAYDCE=
 github.com/NOVAPokemon/generator v0.0.0-20200408175633-e2bd1b3478fb h1:lg5H745PDAf6w6p/GKyXKoG91dK+6k+01qv0/XsmEPY=
 github.com/NOVAPokemon/generator v0.0.0-20200408175633-e2bd1b3478fb/go.mod h1:2JuPjjWpyonARyEbzV0oL2ySwaBGd2bYcMaA56NkYD0=
 github.com/NOVAPokemon/store v0.0.0-20200402234902-75f7792046b7 h1:SRESWGQGVCAxZnTwvB9C0eVGU/H6g8Gsj0qxTJ0TFs0=
 github.com/NOVAPokemon/store v0.0.0-20200402234902-75f7792046b7/go.mod h1:nXXKMHl3WKGeBex3+Gn27aqH3kjROuk5cMb6vx59J/M=
 github.com/NOVAPokemon/trainers v0.0.3 h1:OLltOKfe5IMpLQQx30KDo9F8nMauthVdikV30UwE9dg=
 github.com/NOVAPokemon/trainers v0.0.3/go.mod h1:FCwzRHT0j/u3H/VLPP4gPQaQRund8eYoD6hJannP0yo=
+github.com/NOVAPokemon/utils v0.0.35/go.mod h1:/VJvC+7Xr15eJdwVoW2kHZ7wtUJZeI0pnqLLOwHpyH4=
 github.com/NOVAPokemon/utils v0.0.62/go.mod h1:iuir+p5jZ0Ur/9kYvmPdp7dyh9uohLcIkGuAv91qtRw=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
