@@ -31,6 +31,7 @@ type NovaPokemonClient struct {
 	trainersClient      *clients.TrainersClient
 	storeClient         *clients.StoreClient
 	generatorClient     *clients.GeneratorClient
+	locationClient      *clients.LocationClient
 
 	notificationsChannel chan *utils.Notification
 	operationsChannel    chan Operation
@@ -57,6 +58,7 @@ func (c *NovaPokemonClient) init() {
 	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), httpCLient)
 	c.storeClient = clients.NewStoreClient(fmt.Sprintf("%s:%d", utils.Host, utils.StorePort))
 	c.generatorClient = clients.NewGeneratorClient(fmt.Sprintf("%s:%d", utils.Host, utils.GeneratorPort))
+	c.locationClient = clients.NewLocationClient(fmt.Sprintf("%s:%d", utils.Host, utils.LocationPort))
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
@@ -109,7 +111,7 @@ func (c *NovaPokemonClient) StartListeningToNotifications() {
 }
 
 func (c *NovaPokemonClient) StartUpdatingLocation() {
-	go c.trainersClient.StartLocationUpdates(c.authClient.AuthToken)
+	go c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
 }
 
 func (c *NovaPokemonClient) MainLoopAuto() {
