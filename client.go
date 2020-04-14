@@ -223,7 +223,7 @@ func (c *NovaPokemonClient) BuyRandomItem() error {
 }
 
 func (c *NovaPokemonClient) CatchWildPokemon() error {
-	caught, responseHeader, err := c.generatorClient.CatchWildPokemon(c.authClient.AuthToken)
+	caught, responseHeader, err := c.generatorClient.CatchWildPokemon(c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	if err != nil {
 		return err
 	}
