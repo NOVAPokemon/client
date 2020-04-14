@@ -71,12 +71,13 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			return nil
 
 		case <-cdTimer.C:
-			// if the battle hasnt started but the pokemon is already picked, do nothing
+			// if the battle hasn't started but the pokemon is already picked, do nothing
 			if started {
 				err := doNextBattleMove(selectedPokemon, pokemonsMap, channels.OutChannel)
 				if err != nil {
 					log.Error(err)
-					<-channels.FinishChannel
+					close(channels.FinishChannel)
+					conn.Close()
 					return err
 				}
 			} else {
@@ -84,7 +85,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				log.Infof("Waiting on other player, timing out in %f seconds", remainingTime.Seconds())
 			}
 
-			cooldownDuration := time.Duration(RandInt(1500, 2500))
+			cooldownDuration := time.Duration(RandInt(350, 750))
 			cdTimer.Reset(cooldownDuration * time.Millisecond)
 
 		case msg, ok := <-channels.InChannel:

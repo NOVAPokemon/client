@@ -15,18 +15,10 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
-const (
-	challengeCmd = 'b'
-	queueCmd     = 'q'
-	tradeCmd     = 't'
-	storeCmd     = 's'
-	catchCmd     = 'c'
-	exitCmd      = 'e'
-
-	maxNotificationsBuffered = 10
-)
+const maxNotificationsBuffered = 10
 
 type NovaPokemonClient struct {
 	Username string
@@ -41,7 +33,7 @@ type NovaPokemonClient struct {
 	generatorClient     *clients.GeneratorClient
 
 	notificationsChannel chan *utils.Notification
-	operationsChannel    chan rune
+	operationsChannel    chan Operation
 
 	emitFinish    chan struct{}
 	receiveFinish chan bool
@@ -51,7 +43,7 @@ var httpCLient = &http.Client{}
 
 func (c *NovaPokemonClient) init() {
 	c.notificationsChannel = make(chan *utils.Notification, maxNotificationsBuffered)
-	c.operationsChannel = make(chan rune)
+	c.operationsChannel = make(chan Operation)
 
 	c.emitFinish = make(chan struct{})
 	c.receiveFinish = make(chan bool)
@@ -120,11 +112,43 @@ func (c *NovaPokemonClient) StartUpdatingLocation() {
 	go c.trainersClient.StartLocationUpdates(c.authClient.AuthToken)
 }
 
-func (c *NovaPokemonClient) MainLoop() {
+func (c *NovaPokemonClient) MainLoopAuto() {
+	defer c.validateStatsTokens()
+	defer c.validateItemTokens()
+	defer c.validatePokemonTokens()
+	const waitTime = 2 * time.Second
+	waitNotificationsTimer := time.NewTimer(waitTime)
+	autoClient := NewTrainerSim()
+	for {
+		select {
+		case notification := <-c.notificationsChannel:
+			c.HandleNotifications(notification)
+		case <-waitNotificationsTimer.C:
+			nextOp := autoClient.GetNextOperation(
+				c.trainersClient.TrainerStatsClaims,
+				c.trainersClient.PokemonClaims,
+				c.trainersClient.ItemsClaims)
+			exit, err := c.TestOperation(nextOp)
+			if err != nil {
+				log.Error(err)
+				continue
+			} else if exit {
+				return
+			}
+		}
+		c.validateStatsTokens()
+		c.validatePokemonTokens()
+		c.validateItemTokens()
+		waitNotificationsTimer.Reset(waitTime)
+	}
+}
+
+func (c *NovaPokemonClient) MainLoopCLI() {
 	defer c.validateStatsTokens()
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
 	go c.ReadOperation()
+
 	for {
 		fmt.Printf(
 			"%c - queue for battle\n"+
@@ -133,13 +157,13 @@ func (c *NovaPokemonClient) MainLoop() {
 				"%c - buy random item\n"+
 				"%c - try to catch pokemon\n"+
 				"%c - exit\n",
-			queueCmd, challengeCmd, tradeCmd, storeCmd, catchCmd, exitCmd)
+			QueueCmd, ChallengeCmd, TradeCmd, StoreCmd, CatchCmd, ExitCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
 			c.HandleNotifications(notification)
 		case operation := <-c.operationsChannel:
-			exit, err := c.TestOperation(operation)
+			exit, err := c.TestOperation(Operation(operation))
 			if err != nil {
 				log.Error(err)
 				continue
@@ -161,24 +185,23 @@ func (c *NovaPokemonClient) ReadOperation() {
 			log.Error(err)
 			return
 		}
-
-		c.operationsChannel <- []rune(strings.TrimSpace(command))[0]
+		c.operationsChannel <- Operation([]rune(strings.TrimSpace(command))[0])
 	}
 }
 
-func (c *NovaPokemonClient) TestOperation(operation rune) (bool, error) {
+func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 	switch operation {
-	case challengeCmd:
+	case ChallengeCmd:
 		return false, c.startAutoChallenge()
-	case queueCmd:
+	case QueueCmd:
 		return false, c.StartAutoBattleQueue()
-	case tradeCmd:
+	case TradeCmd:
 		return false, c.startAutoTrade()
-	case storeCmd:
+	case StoreCmd:
 		return false, c.BuyRandomItem()
-	case catchCmd:
+	case CatchCmd:
 		return false, c.CatchWildPokemon()
-	case exitCmd:
+	case ExitCmd:
 		return true, nil
 	default:
 		return false, errors.New("invalid command")
@@ -369,9 +392,9 @@ func (c *NovaPokemonClient) getPokemonsForBattle() []string {
 
 func (c *NovaPokemonClient) validateItemTokens() {
 	if valid, err := c.trainersClient.VerifyItems(c.Username, c.trainersClient.ItemsClaims.ItemsHash, c.authClient.AuthToken); err != nil {
-		log.Error(err)
+		log.Fatal(err)
 	} else if !*valid {
-		log.Error("ended up with wrong items")
+		log.Fatal("ended up with wrong items")
 	} else {
 		log.Info("New item tokens are correct")
 	}
@@ -379,9 +402,9 @@ func (c *NovaPokemonClient) validateItemTokens() {
 
 func (c *NovaPokemonClient) validateStatsTokens() {
 	if valid, err := c.trainersClient.VerifyTrainerStats(c.Username, c.trainersClient.TrainerStatsClaims.TrainerHash, c.authClient.AuthToken); err != nil {
-		log.Error(err)
+		log.Fatal(err)
 	} else if !*valid {
-		log.Error("ended up with wrong stats token")
+		log.Fatal("ended up with wrong stats token")
 	} else {
 		log.Info("New stats token is correct")
 	}
@@ -394,9 +417,9 @@ func (c *NovaPokemonClient) validatePokemonTokens() {
 	}
 
 	if valid, err := c.trainersClient.VerifyPokemons(c.Username, hashes, c.authClient.AuthToken); err != nil {
-		log.Error(err)
+		log.Fatal(err)
 	} else if !*valid {
-		log.Error("ended up with wrong pokemons")
+		log.Fatal("ended up with wrong pokemons")
 	} else {
 		log.Info("New pokemon tokens are correct")
 	}

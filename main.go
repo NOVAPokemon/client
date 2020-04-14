@@ -1,6 +1,8 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,7 +19,15 @@ import (
 //}
 
 func main() {
-	writeAutoRunConfigFile(&Actions{Battle: 0, Trade: 0, Store: 0, Catch: 0})
+
+	flag.Usage = func() {
+		fmt.Printf("Usage\n")
+		fmt.Printf("./client -a \n")
+		//flag.PrintDefaults()  // prints default usage
+	}
+	var auto bool
+	flag.BoolVar(&auto, "a", false, "start automatic client")
+	flag.Parse()
 
 	client := NovaPokemonClient{
 		Username: RandomString(20),
@@ -33,6 +43,12 @@ func main() {
 
 	client.StartListeningToNotifications()
 	client.StartUpdatingLocation()
-	client.MainLoop()
+
+	if auto {
+		client.MainLoopAuto()
+	} else {
+		client.MainLoopCLI()
+	}
+
 	client.Finish()
 }
