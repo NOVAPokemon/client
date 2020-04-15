@@ -111,8 +111,8 @@ func (c *NovaPokemonClient) StartListeningToNotifications() {
 	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
 }
 
-func (c *NovaPokemonClient) StartUpdatingLocation() {
-	go c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
+func (c *NovaPokemonClient) StartUpdatingLocation(parameters utils.LocationParameters) {
+	go c.locationClient.StartLocationUpdates(parameters, c.authClient.AuthToken)
 }
 
 func (c *NovaPokemonClient) MainLoopAuto() {
