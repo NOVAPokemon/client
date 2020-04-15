@@ -8,6 +8,7 @@ import (
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/notifications"
+	"github.com/NOVAPokemon/utils/pokemons"
 	"github.com/NOVAPokemon/utils/websockets/battles"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -288,14 +289,23 @@ func (c *NovaPokemonClient) startAutoChallenge() error {
 
 func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 
-	pokemonsForBattle := c.getPokemonsForBattle()
-	conn, channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken, pokemonsForBattle, c.trainersClient.TrainerStatsToken, otherPlayer)
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
 
 	if err != nil {
 		return err
 	}
 
-	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsForBattle)
+	conn, channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken,
+		pokemonTkns,
+		c.trainersClient.TrainerStatsToken,
+		c.trainersClient.ItemsToken,
+		otherPlayer)
+
+	if err != nil {
+		return err
+	}
+
+	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 }
 
 func (c *NovaPokemonClient) startAutoTrade() error {
@@ -346,22 +356,39 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 		log.Error(err)
 		return err
 	}
-	pokemonsForBattle := c.getPokemonsForBattle()
-	conn, channels, err := c.battlesClient.AcceptChallenge(c.authClient.AuthToken, pokemonsForBattle, c.trainersClient.TrainerStatsToken, battleId)
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
 
 	if err != nil {
 		return err
 	}
 
-	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsForBattle)
+	conn, channels, err := c.battlesClient.AcceptChallenge(c.authClient.AuthToken,
+		pokemonTkns,
+		c.trainersClient.TrainerStatsToken,
+		c.trainersClient.ItemsToken,
+		battleId)
+
+	if err != nil {
+		return err
+	}
+
+	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 }
 
 // HELPER FUNCTIONS
 
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 
-	pokemonsToUse := c.getPokemonsForBattle()
-	conn, channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken, pokemonsToUse, c.trainersClient.TrainerStatsToken)
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
+
+	if err != nil {
+		return err
+	}
+
+	conn, channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken,
+		pokemonTkns,
+		c.trainersClient.TrainerStatsToken,
+		c.trainersClient.ItemsToken)
 
 	if err != nil {
 		log.Error(err)
@@ -377,19 +404,32 @@ func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 	return nil
 }
 
-func (c *NovaPokemonClient) getPokemonsForBattle() []string {
+func (c *NovaPokemonClient) getPokemonsForBattle() (map[string]*pokemons.Pokemon, []string, error) {
 
 	var pokemonTkns = make([]string, battles.PokemonsPerBattle)
+	var pokemonMap = make(map[string]*pokemons.Pokemon, battles.PokemonsPerBattle)
 
 	i := 0
-	for _, tkn := range c.trainersClient.PokemonTokens {
+	for _, tkn := range c.trainersClient.PokemonClaims {
+
+		if tkn.Pokemon.HP == 0 {
+			continue
+		}
+
+		pokemonId := tkn.Pokemon.Id.Hex()
 		if i == battles.PokemonsPerBattle {
 			break
 		}
-		pokemonTkns[i] = tkn
+		pokemonTkns[i] = c.trainersClient.PokemonTokens[pokemonId]
+		aux := c.trainersClient.PokemonClaims[pokemonId].Pokemon // make a copy of pokemons
+		pokemonMap[pokemonId] = &aux
 		i++
 	}
-	return pokemonTkns
+	if i < battles.PokemonsPerBattle {
+		return nil, nil, errors.New("not enough alive pokemons to battle")
+	}
+
+	return pokemonMap, pokemonTkns, nil
 }
 
 func (c *NovaPokemonClient) validateItemTokens() {

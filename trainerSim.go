@@ -74,7 +74,7 @@ func getAndVerifyProbMatrix() [][]float32 {
 	return matrix
 }
 
-func (s *TrainerSim) GetNextOperation(trainer *tokens.TrainerStatsToken, pokemons map[string]*tokens.PokemonToken, items *tokens.ItemsToken) Operation {
+func (s *TrainerSim) GetNextOperation(trainer *tokens.TrainerStatsToken, pokemons map[string]tokens.PokemonToken, items *tokens.ItemsToken) Operation {
 
 	s.logNextProbabilities()
 
