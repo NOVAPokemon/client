@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/NOVAPokemon/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -43,13 +42,7 @@ func main() {
 	}
 
 	client.StartListeningToNotifications()
-
-	parameters := utils.LocationParameters{
-		StartingLocation:  utils.Location{},
-		MovingSpeed:       0,
-		MovingProbability: 0,
-	}
-	client.StartUpdatingLocation(parameters)
+	client.StartUpdatingLocation()
 
 	if auto {
 		client.MainLoopAuto()
