@@ -95,9 +95,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 			case battles.ERROR:
 				switch msgParsed.MsgArgs[0] {
-				case battles.ErrNoPokemonSelected:
+				case battles.ErrNoPokemonSelected.Error():
 					selectedPokemon = nil
-				case battles.ErrInvalidPokemonSelected:
+				case battles.ErrInvalidPokemonSelected.Error():
 					selectedPokemon = nil
 				default:
 					log.Warn(msgParsed.MsgArgs[0])
@@ -137,6 +137,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				if len(msgParsed.MsgArgs) > 0 {
 					delete(trainersClient.ItemsClaims.Items, msgParsed.MsgArgs[0])
 				}
+
 			case battles.SET_TOKEN:
 				tknType := msgParsed.MsgArgs[0]
 
@@ -174,7 +175,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					}
 					trainersClient.ItemsClaims = decodedToken
 					trainersClient.ItemsToken = msgParsed.MsgArgs[1]
-
 				}
 				log.Warn("Updated Token!")
 			}
@@ -245,7 +245,6 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 }
 
 func getReviveItem(trainerItems map[string]items.Item) (*items.Item, error) {
-
 	for _, item := range trainerItems {
 		if item.Effect.Appliable && item.Effect == items.ReviveEffect {
 			return &item, nil
@@ -255,7 +254,6 @@ func getReviveItem(trainerItems map[string]items.Item) (*items.Item, error) {
 }
 
 func getItemToUseOnPokemon(trainerItems map[string]items.Item) (*items.Item, error) {
-
 	for _, item := range trainerItems {
 		if item.Effect.Appliable {
 			return &item, nil
@@ -279,7 +277,6 @@ func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan 
 }
 
 func getAlivePokemon(pokemons map[string]*pokemons.Pokemon) (*pokemons.Pokemon, error) {
-
 	for _, v := range pokemons {
 		if v.HP > 0 {
 			return v, nil
@@ -290,11 +287,8 @@ func getAlivePokemon(pokemons map[string]*pokemons.Pokemon) (*pokemons.Pokemon, 
 }
 
 func RandomString(n int) string {
-
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
 	rand.Seed(time.Now().Unix())
-
 	s := make([]rune, n)
 	for i := range s {
 		s[i] = letters[rand.Intn(len(letters))]
@@ -306,4 +300,3 @@ func RandInt(min int, max int) int {
 	rand.Seed(time.Now().UTC().UnixNano())
 	return min + rand.Intn(max-min)
 }
-
