@@ -35,7 +35,8 @@ func requestPassword() string {
 }
 
 func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels clients.BattleChannels, chosenPokemons map[string]*pokemons.Pokemon) error {
-	defer conn.Close()
+	defer websockets.CloseConnection(conn)
+
 	rand.Seed(time.Now().Unix())
 	const timeout = 10 * time.Second
 
@@ -51,7 +52,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 		<-expireTimer.C
 		if !started {
 			log.Warn("Leaving lobby because other player hasn't joined")
-			conn.Close()
+			websockets.CloseConnection(conn)
 		}
 	}()
 
@@ -90,10 +91,10 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			}
 
 			switch msgParsed.MsgType {
-			case battles.START:
+			case battles.Start:
 				started = true
 
-			case battles.ERROR:
+			case battles.Error:
 				switch msgParsed.MsgArgs[0] {
 				case battles.ErrNoPokemonSelected.Error():
 					selectedPokemon = nil
@@ -103,7 +104,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					log.Warn(msgParsed.MsgArgs[0])
 				}
 
-			case battles.UPDATE_PLAYER_POKEMON:
+			case battles.UpdatePlayerPokemon:
 				pokemon := &pokemons.Pokemon{}
 				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
 				if err != nil {
@@ -119,7 +120,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				chosenPokemons[pokemon.Id.Hex()] = pokemon
 				selectedPokemon = pokemon
 
-			case battles.UPDATE_ADVERSARY_POKEMON:
+			case battles.UpdateAdversaryPokemon:
 				pokemon := &pokemons.Pokemon{}
 				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
 				if err != nil {
@@ -133,12 +134,12 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					adversaryPokemon.MaxHP,
 					adversaryPokemon.Species)
 
-			case battles.REMOVE_ITEM:
+			case battles.RemoveItem:
 				if len(msgParsed.MsgArgs) > 0 {
 					delete(trainersClient.ItemsClaims.Items, msgParsed.MsgArgs[0])
 				}
 
-			case battles.SET_TOKEN:
+			case battles.SetToken:
 				tknType := msgParsed.MsgArgs[0]
 
 				switch tknType {
@@ -199,7 +200,7 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			log.Info("no revive items left")
 
 			log.Info("Using revive...")
-			toSend := websockets.Message{MsgType: battles.USE_ITEM, MsgArgs: []string{itemToUse.Id.Hex()}}
+			toSend := websockets.Message{MsgType: battles.UseItem, MsgArgs: []string{itemToUse.Id.Hex()}}
 			websockets.SendMessage(toSend, outChannel)
 		} else { // no revive, switch pokemon
 			newPokemon, err := changeActivePokemon(trainerPokemons, outChannel)
@@ -222,12 +223,12 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 		if randNr < probAttack {
 			// attack
 			log.Info("Attacking...")
-			toSend := websockets.Message{MsgType: battles.ATTACK, MsgArgs: []string{}}
+			toSend := websockets.Message{MsgType: battles.Attack, MsgArgs: []string{}}
 			websockets.SendMessage(toSend, outChannel)
 		} else if randNr < probAttack+probDef {
 			// defend
 			log.Info("Defending...")
-			toSend := websockets.Message{MsgType: battles.DEFEND, MsgArgs: []string{}}
+			toSend := websockets.Message{MsgType: battles.Defend, MsgArgs: []string{}}
 			websockets.SendMessage(toSend, outChannel)
 		} else {
 			// use item
@@ -237,7 +238,7 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 				continue
 			}
 			log.Info("Using item...")
-			toSend := websockets.Message{MsgType: battles.USE_ITEM, MsgArgs: []string{itemToUse.Id.Hex()}}
+			toSend := websockets.Message{MsgType: battles.UseItem, MsgArgs: []string{itemToUse.Id.Hex()}}
 			websockets.SendMessage(toSend, outChannel)
 		}
 		return nil
@@ -271,7 +272,7 @@ func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan 
 	log.Infof("Selecting pokemon:\tID:%s, HP: %d, Species: %s", nextPokemon.Id.Hex(),
 		nextPokemon.HP,
 		nextPokemon.Species)
-	toSend := websockets.Message{MsgType: battles.SELECT_POKEMON, MsgArgs: []string{nextPokemon.Id.Hex()}}
+	toSend := websockets.Message{MsgType: battles.SelectPokemon, MsgArgs: []string{nextPokemon.Id.Hex()}}
 	websockets.SendMessage(toSend, outChannel)
 	return nextPokemon, nil
 }

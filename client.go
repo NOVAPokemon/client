@@ -167,7 +167,7 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 		case notification := <-c.notificationsChannel:
 			c.HandleNotifications(notification)
 		case operation := <-c.operationsChannel:
-			exit, err := c.TestOperation(Operation(operation))
+			exit, err := c.TestOperation(operation)
 			if err != nil {
 				log.Error(err)
 				continue
