@@ -34,11 +34,11 @@ func requestPassword() string {
 	return strings.TrimSpace(text)
 }
 
-func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels clients.BattleChannels, chosenPokemons map[string]*pokemons.Pokemon) error {
+func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels, chosenPokemons map[string]*pokemons.Pokemon) error {
 	defer websockets.CloseConnection(conn)
 
 	rand.Seed(time.Now().Unix())
-	const timeout = 10 * time.Second
+	const timeout = 30 * time.Second
 
 	cdTimer := time.NewTimer(2 * time.Second)
 	expireTimer := time.NewTimer(timeout)
@@ -195,21 +195,21 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 
 	if selectedPokemon.HP == 0 {
 		// see if we have revive
-		itemToUse, err := getReviveItem(trainerItems)
-		if err == nil {
+		revive, err := getReviveItem(trainerItems)
+		if err != nil {
 			log.Info("no revive items left")
-
+		} else {
 			log.Info("Using revive...")
-			toSend := websockets.Message{MsgType: battles.UseItem, MsgArgs: []string{itemToUse.Id.Hex()}}
+			toSend := websockets.Message{MsgType: battles.UseItem, MsgArgs: []string{revive.Id.Hex()}}
 			websockets.SendMessage(toSend, outChannel)
-		} else { // no revive, switch pokemon
-			newPokemon, err := changeActivePokemon(trainerPokemons, outChannel)
-			if err != nil {
-				return err
-			}
-			selectedPokemon = newPokemon
-			return nil
+		} // no revive, switch pokemon
+
+		newPokemon, err := changeActivePokemon(trainerPokemons, outChannel)
+		if err != nil {
+			return err
 		}
+		selectedPokemon = newPokemon
+		return nil
 	}
 
 	aux := float64(selectedPokemon.HP) / float64(selectedPokemon.MaxHP)

@@ -33,6 +33,7 @@ type NovaPokemonClient struct {
 	storeClient         *clients.StoreClient
 	generatorClient     *clients.GeneratorClient
 	locationClient      *clients.LocationClient
+	gymsClient          *clients.GymClient
 
 	notificationsChannel chan *utils.Notification
 	operationsChannel    chan Operation
@@ -59,8 +60,8 @@ func (c *NovaPokemonClient) init() {
 	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), httpCLient)
 	c.storeClient = clients.NewStoreClient(fmt.Sprintf("%s:%d", utils.Host, utils.StorePort))
 	c.generatorClient = clients.NewGeneratorClient(fmt.Sprintf("%s:%d", utils.Host, utils.GeneratorPort))
-
 	c.locationClient = clients.NewLocationClient(fmt.Sprintf("%s:%d", utils.Host, utils.LocationPort))
+	c.gymsClient = clients.NewGymClient(fmt.Sprintf("%s:%d", utils.Host, utils.GymPort), httpCLient)
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
@@ -160,8 +161,9 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 				"%c - auto trade\n"+
 				"%c - buy random item\n"+
 				"%c - try to catch pokemon\n"+
+				"%c - raid closest gym\n"+
 				"%c - exit\n",
-			QueueCmd, ChallengeCmd, TradeCmd, StoreCmd, CatchCmd, ExitCmd)
+			QueueCmd, ChallengeCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd, ExitCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
@@ -205,6 +207,8 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 		return false, c.BuyRandomItem()
 	case CatchCmd:
 		return false, c.CatchWildPokemon()
+	case RaidCmd:
+		return false, c.StartLookForNearbyRaid(30 * time.Second)
 	case ExitCmd:
 		return true, nil
 	default:
@@ -376,8 +380,6 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 }
 
-// HELPER FUNCTIONS
-
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 
 	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
@@ -404,6 +406,57 @@ func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 
 	return nil
 }
+
+func (c *NovaPokemonClient) StartLookForNearbyRaid(timeout time.Duration) error {
+
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
+
+	if err != nil {
+		return err
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+	for {
+		<-ticker.C
+		gyms := c.locationClient.Gyms
+		for i := 0; i < len(gyms); i++ {
+			gym, err := c.gymsClient.GetGymInfo(gyms[i].Name)
+			if err != nil {
+				return err
+			}
+
+			if gym.RaidBoss == nil || gym.RaidBoss.HP == 0 {
+				log.Info("Raidboss was nil or had no hp")
+				continue
+			}
+
+			log.Info("ongoing raid :", gym.RaidForming)
+			if !gym.RaidForming {
+				log.Info("Creating a new raid...")
+				if err = c.gymsClient.CreateRaid(gym.Name); err != nil {
+					log.Error(err)
+					return err
+				}
+			}
+			log.Info("Dialing raids...")
+			conn, channels, err := c.gymsClient.EnterRaid(c.authClient.AuthToken, pokemonTkns, c.trainersClient.TrainerStatsToken, c.trainersClient.ItemsToken, gym.Name)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+
+			err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+			if err != nil {
+				log.Error(err)
+				return err
+			}
+			return nil
+		}
+	}
+}
+
+// HELPER FUNCTIONS
 
 func (c *NovaPokemonClient) getPokemonsForBattle() (map[string]*pokemons.Pokemon, []string, error) {
 

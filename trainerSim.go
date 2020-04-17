@@ -11,7 +11,7 @@ import (
 
 type Operation rune
 
-var ops = []Operation{ChallengeCmd, QueueCmd, TradeCmd, StoreCmd, CatchCmd}
+var ops = []Operation{ChallengeCmd, QueueCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd}
 
 const (
 	// *** WARNING ***
@@ -21,6 +21,7 @@ const (
 	TradeCmd     Operation = 't'
 	StoreCmd     Operation = 's'
 	CatchCmd     Operation = 'c'
+	RaidCmd      Operation = 'r'
 	ExitCmd      Operation = 'e'
 )
 
