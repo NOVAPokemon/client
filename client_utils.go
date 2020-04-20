@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/items"
 	"github.com/NOVAPokemon/utils/pokemons"
@@ -15,24 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	"math/rand"
-	"os"
-	"strings"
 	"time"
 )
-
-func requestUsername() string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter username: ")
-	text, _ := reader.ReadString('\n')
-	return strings.TrimSpace(text)
-}
-
-func requestPassword() string {
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter password: ")
-	text, _ := reader.ReadString('\n')
-	return strings.TrimSpace(text)
-}
 
 func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels, chosenPokemons map[string]*pokemons.Pokemon) error {
 	defer websockets.CloseConnection(conn)
@@ -63,7 +44,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			return nil
 
 		case <-cdTimer.C:
-			// if the battle hasn't started but the pokemon is already picked, do nothing
+			// if the battle hasn't started but the updatedPokemon is already picked, do nothing
 			if started {
 				err := doNextBattleMove(selectedPokemon, chosenPokemons, trainersClient.ItemsClaims.Items, channels.OutChannel)
 				if err != nil {
@@ -95,65 +76,50 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				started = true
 
 			case battles.Error:
-				switch msgParsed.MsgArgs[0] {
-				case battles.ErrNoPokemonSelected.Error():
-					selectedPokemon = nil
-				case battles.ErrInvalidPokemonSelected.Error():
-					selectedPokemon = nil
-				default:
-					log.Warn(msgParsed.MsgArgs[0])
+				errMsg := battles.DeserializeBattleMsg(msgParsed).(*battles.ErrorMessage)
+				if errMsg.Fatal {
+					return errors.New(errMsg.Info)
+				} else {
+					log.Warn(errMsg.Info)
 				}
 
-			case battles.UpdatePlayerPokemon:
-				pokemon := &pokemons.Pokemon{}
-				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
-				if err != nil {
-					log.Error("Error decoding player pokemon")
-					<-channels.FinishChannel
-					return err
-				}
-				log.Infof("Self pokemon:\tID:%s, HP: %d, maxHP :%d Species: %s", pokemon.Id.Hex(),
-					pokemon.HP,
-					pokemon.MaxHP,
-					pokemon.Species)
+			case battles.UpdatePokemon:
+				updatePokemonMsg := battles.DeserializeBattleMsg(msgParsed).(*battles.UpdatePokemonMessage)
+				updatedPokemon := updatePokemonMsg.Pokemon
+				if updatePokemonMsg.Owner {
+					chosenPokemons[updatedPokemon.Id.Hex()] = &updatedPokemon
+					selectedPokemon = &updatedPokemon
+					log.Infof("Self Pokemon:\tID:%s, HP:%d, maxHP:%d, Species:%s", selectedPokemon.Id.Hex(),
+						selectedPokemon.HP,
+						selectedPokemon.MaxHP,
+						selectedPokemon.Species)
 
-				chosenPokemons[pokemon.Id.Hex()] = pokemon
-				selectedPokemon = pokemon
-
-			case battles.UpdateAdversaryPokemon:
-				pokemon := &pokemons.Pokemon{}
-				err := json.Unmarshal([]byte(strings.TrimSpace(msgParsed.MsgArgs[0])), pokemon)
-				if err != nil {
-					log.Error("Error decoding adversary pokemon")
-					<-channels.FinishChannel
-					return err
+				} else {
+					adversaryPokemon = &updatedPokemon
+					log.Infof("Adversary Pokemon:\tID:%s, HP:%d, maxHP:%d, Species:%s", adversaryPokemon.Id.Hex(),
+						adversaryPokemon.HP,
+						adversaryPokemon.MaxHP,
+						adversaryPokemon.Species)
 				}
-				adversaryPokemon = pokemon
-				log.Infof("Adversary pokemon:\tID:%s, HP: %d, maxHP :%d Species: %s", adversaryPokemon.Id.Hex(),
-					adversaryPokemon.HP,
-					adversaryPokemon.MaxHP,
-					adversaryPokemon.Species)
 
 			case battles.RemoveItem:
-				if len(msgParsed.MsgArgs) > 0 {
-					delete(trainersClient.ItemsClaims.Items, msgParsed.MsgArgs[0])
-				}
+				removeItemMsg := battles.DeserializeBattleMsg(msgParsed).(*battles.RemoveItemMessage)
+				delete(trainersClient.ItemsClaims.Items, removeItemMsg.ItemId)
 
 			case battles.SetToken:
-				tknType := msgParsed.MsgArgs[0]
-
-				switch tknType {
+				setTokenMsg := battles.DeserializeBattleMsg(msgParsed).(*battles.SetTokenMessage)
+				switch setTokenMsg.TokenField {
 				case tokens.StatsTokenHeaderName:
-					decodedToken, err := tokens.ExtractStatsToken(msgParsed.MsgArgs[1])
+					decodedToken, err := tokens.ExtractStatsToken(setTokenMsg.TokensString[0])
 					if err != nil {
 						log.Error(err)
 						continue
 					}
 					trainersClient.TrainerStatsClaims = decodedToken
-					trainersClient.TrainerStatsToken = msgParsed.MsgArgs[1]
+					trainersClient.TrainerStatsToken = setTokenMsg.TokensString[0]
 
 				case tokens.PokemonsTokenHeaderName:
-					pokemonTkns := msgParsed.MsgArgs[1:]
+					pokemonTkns := setTokenMsg.TokensString
 					for _, tkn := range pokemonTkns {
 
 						if len(tkn) == 0 {
@@ -169,13 +135,13 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 					}
 				case tokens.ItemsTokenHeaderName:
-					decodedToken, err := tokens.ExtractItemsToken(msgParsed.MsgArgs[1])
+					decodedToken, err := tokens.ExtractItemsToken(setTokenMsg.TokensString[0])
 					if err != nil {
 						log.Error(err)
 						continue
 					}
 					trainersClient.ItemsClaims = decodedToken
-					trainersClient.ItemsToken = msgParsed.MsgArgs[1]
+					trainersClient.ItemsToken = setTokenMsg.TokensString[0]
 				}
 				log.Warn("Updated Token!")
 			}
@@ -199,9 +165,10 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 		if err != nil {
 			log.Info("no revive items left")
 		} else {
-			log.Info("Using revive...")
-			toSend := websockets.Message{MsgType: battles.UseItem, MsgArgs: []string{revive.Id.Hex()}}
-			websockets.SendMessage(toSend, outChannel)
+			log.Infof("Using revive item ID %s...", revive.Id.Hex())
+			toSend := battles.UseItemMessage{ItemId: revive.Id.Hex()}.SerializeToWSMessage()
+			websockets.SendMessage(*toSend, outChannel)
+			return nil
 		} // no revive, switch pokemon
 
 		newPokemon, err := changeActivePokemon(trainerPokemons, outChannel)
@@ -223,13 +190,13 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 		if randNr < probAttack {
 			// attack
 			log.Info("Attacking...")
-			toSend := websockets.Message{MsgType: battles.Attack, MsgArgs: []string{}}
-			websockets.SendMessage(toSend, outChannel)
+			toSend := battles.AttackMessage{}.SerializeToWSMessage()
+			websockets.SendMessage(*toSend, outChannel)
 		} else if randNr < probAttack+probDef {
 			// defend
 			log.Info("Defending...")
-			toSend := websockets.Message{MsgType: battles.Defend, MsgArgs: []string{}}
-			websockets.SendMessage(toSend, outChannel)
+			toSend := battles.DefendMessage{}.SerializeToWSMessage()
+			websockets.SendMessage(*toSend, outChannel)
 		} else {
 			// use item
 			itemToUse, err := getItemToUseOnPokemon(trainerItems)
@@ -237,9 +204,9 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 				probUseItem = 0
 				continue
 			}
-			log.Info("Using item...")
-			toSend := websockets.Message{MsgType: battles.UseItem, MsgArgs: []string{itemToUse.Id.Hex()}}
-			websockets.SendMessage(toSend, outChannel)
+			log.Infof("Using item: %s", itemToUse.Id.Hex())
+			toSend := battles.UseItemMessage{ItemId: itemToUse.Id.Hex()}.SerializeToWSMessage()
+			websockets.SendMessage(*toSend, outChannel)
 		}
 		return nil
 	}
@@ -272,8 +239,8 @@ func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan 
 	log.Infof("Selecting pokemon:\tID:%s, HP: %d, Species: %s", nextPokemon.Id.Hex(),
 		nextPokemon.HP,
 		nextPokemon.Species)
-	toSend := websockets.Message{MsgType: battles.SelectPokemon, MsgArgs: []string{nextPokemon.Id.Hex()}}
-	websockets.SendMessage(toSend, outChannel)
+	toSend := battles.SelectPokemonMessage{PokemonId: nextPokemon.Id.Hex()}.SerializeToWSMessage()
+	websockets.SendMessage(*toSend, outChannel)
 	return nextPokemon, nil
 }
 
