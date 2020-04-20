@@ -170,6 +170,8 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 		} else {
 			log.Infof("Using revive item ID %s...", revive.Id.Hex())
 			useItemMsg := battles.NewUseItemMessage(revive.Id.Hex())
+			useItemMsg.Emit(websockets.MakeTimestamp())
+			useItemMsg.LogEmit(battles.UseItem)
 			toSend := useItemMsg.SerializeToWSMessage()
 			websockets.SendMessage(*toSend, outChannel)
 			return nil
@@ -213,6 +215,8 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			}
 			log.Infof("Using item: %s", itemToUse.Id.Hex())
 			useItemMsg := battles.NewUseItemMessage(itemToUse.Id.Hex())
+			useItemMsg.Emit(websockets.MakeTimestamp())
+			useItemMsg.LogEmit(battles.UseItem)
 			toSend := useItemMsg.SerializeToWSMessage()
 			websockets.SendMessage(*toSend, outChannel)
 		}
@@ -247,7 +251,11 @@ func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan 
 	log.Infof("Selecting pokemon:\tID:%s, HP: %d, Species: %s", nextPokemon.Id.Hex(),
 		nextPokemon.HP,
 		nextPokemon.Species)
+
 	selectPokemonMsg := battles.NewSelectPokemonMessage(nextPokemon.Id.Hex())
+	selectPokemonMsg.Emit(websockets.MakeTimestamp())
+	selectPokemonMsg.LogEmit(battles.SelectPokemon)
+
 	toSend := selectPokemonMsg.SerializeToWSMessage()
 	websockets.SendMessage(*toSend, outChannel)
 	return nextPokemon, nil
