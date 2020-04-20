@@ -85,6 +85,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 			case battles.UpdatePokemon:
 				updatePokemonMsg := battles.DeserializeBattleMsg(msgParsed).(*battles.UpdatePokemonMessage)
+				updatePokemonMsg.Receive(websockets.MakeTimestamp())
+				updatePokemonMsg.LogReceive(battles.UpdatePokemon)
+
 				updatedPokemon := updatePokemonMsg.Pokemon
 				if updatePokemonMsg.Owner {
 					chosenPokemons[updatedPokemon.Id.Hex()] = &updatedPokemon
@@ -166,7 +169,8 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			log.Info("no revive items left")
 		} else {
 			log.Infof("Using revive item ID %s...", revive.Id.Hex())
-			toSend := battles.UseItemMessage{ItemId: revive.Id.Hex()}.SerializeToWSMessage()
+			useItemMsg := battles.NewUseItemMessage(revive.Id.Hex())
+			toSend := useItemMsg.SerializeToWSMessage()
 			websockets.SendMessage(*toSend, outChannel)
 			return nil
 		} // no revive, switch pokemon
@@ -190,7 +194,10 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 		if randNr < probAttack {
 			// attack
 			log.Info("Attacking...")
-			toSend := battles.AttackMessage{}.SerializeToWSMessage()
+			attackMsg := battles.NewAttackMessage()
+			attackMsg.Emit(websockets.MakeTimestamp())
+			attackMsg.LogEmit(battles.Attack)
+			toSend := attackMsg.SerializeToWSMessage()
 			websockets.SendMessage(*toSend, outChannel)
 		} else if randNr < probAttack+probDef {
 			// defend
@@ -205,7 +212,8 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 				continue
 			}
 			log.Infof("Using item: %s", itemToUse.Id.Hex())
-			toSend := battles.UseItemMessage{ItemId: itemToUse.Id.Hex()}.SerializeToWSMessage()
+			useItemMsg := battles.NewUseItemMessage(itemToUse.Id.Hex())
+			toSend := useItemMsg.SerializeToWSMessage()
 			websockets.SendMessage(*toSend, outChannel)
 		}
 		return nil
@@ -239,7 +247,8 @@ func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan 
 	log.Infof("Selecting pokemon:\tID:%s, HP: %d, Species: %s", nextPokemon.Id.Hex(),
 		nextPokemon.HP,
 		nextPokemon.Species)
-	toSend := battles.SelectPokemonMessage{PokemonId: nextPokemon.Id.Hex()}.SerializeToWSMessage()
+	selectPokemonMsg := battles.NewSelectPokemonMessage(nextPokemon.Id.Hex())
+	toSend := selectPokemonMsg.SerializeToWSMessage()
 	websockets.SendMessage(*toSend, outChannel)
 	return nextPokemon, nil
 }
