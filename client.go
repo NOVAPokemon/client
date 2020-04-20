@@ -12,6 +12,7 @@ import (
 	"github.com/NOVAPokemon/utils/websockets/battles"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -19,11 +20,17 @@ import (
 	"time"
 )
 
-const maxNotificationsBuffered = 10
+const (
+	configFilename = "configs.json"
+
+	maxNotificationsBuffered = 10
+)
 
 type NovaPokemonClient struct {
 	Username string
 	Password string
+
+	config *utils.ClientConfig
 
 	authClient          *clients.AuthClient
 	battlesClient       *clients.BattleLobbyClient
@@ -45,6 +52,13 @@ type NovaPokemonClient struct {
 var httpCLient = &http.Client{}
 
 func (c *NovaPokemonClient) init() {
+	config, err := loadConfig()
+	if err != nil {
+		log.Fatal("error loading configs")
+	}
+
+	c.config = config
+
 	c.notificationsChannel = make(chan *utils.Notification, maxNotificationsBuffered)
 	c.operationsChannel = make(chan Operation)
 
@@ -55,12 +69,12 @@ func (c *NovaPokemonClient) init() {
 	c.battlesClient = &clients.BattleLobbyClient{
 		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
 	}
-	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort))
+	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort), c.config.TradeConfig)
 	c.notificationsClient = clients.NewNotificationClient(fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort), c.notificationsChannel)
 	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), httpCLient)
 	c.storeClient = clients.NewStoreClient(fmt.Sprintf("%s:%d", utils.Host, utils.StorePort))
 	c.generatorClient = clients.NewGeneratorClient(fmt.Sprintf("%s:%d", utils.Host, utils.GeneratorPort))
-	c.locationClient = clients.NewLocationClient(fmt.Sprintf("%s:%d", utils.Host, utils.LocationPort))
+	c.locationClient = clients.NewLocationClient(fmt.Sprintf("%s:%d", utils.Host, utils.LocationPort), c.config.LocationConfig)
 	c.gymsClient = clients.NewGymClient(fmt.Sprintf("%s:%d", utils.Host, utils.GymPort), httpCLient)
 }
 
@@ -519,4 +533,21 @@ func (c *NovaPokemonClient) validatePokemonTokens() {
 	} else {
 		log.Info("New pokemon tokens are correct")
 	}
+}
+
+func loadConfig() (*utils.ClientConfig, error) {
+	fileData, err := ioutil.ReadFile(configFilename)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	var clientConfig utils.ClientConfig
+	err = json.Unmarshal(fileData, &clientConfig)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
+	return &clientConfig, nil
 }

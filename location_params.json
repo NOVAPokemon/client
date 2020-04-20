@@ -1,9 +1,0 @@
-{
-  "startingLocation": {
-    "latitude": 0.5,
-    "longitude": 0.5
-  },
-  "maxMovingSpeed": 2.0,
-  "movingProbability": 1.0,
-  "maxDistanceFromStart": 8
-}
