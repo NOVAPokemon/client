@@ -15,5 +15,11 @@
       "moving_probability": 1.0,
       "max_distance_from_start": 8
     }
+  },
+  "battles": {
+    "pokemons_per_battle": 2
+  },
+  "raids": {
+    "pokemons_per_raid": 3
   }
 }

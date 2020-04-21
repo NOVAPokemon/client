@@ -9,7 +9,6 @@ import (
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/notifications"
 	"github.com/NOVAPokemon/utils/pokemons"
-	"github.com/NOVAPokemon/utils/websockets/battles"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
@@ -21,8 +20,7 @@ import (
 )
 
 const (
-	configFilename = "configs.json"
-
+	configFilename           = "configs.json"
 	maxNotificationsBuffered = 10
 )
 
@@ -308,7 +306,7 @@ func (c *NovaPokemonClient) startAutoChallenge() error {
 
 func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 
-	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 
 	if err != nil {
 		return err
@@ -375,7 +373,7 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 		log.Error(err)
 		return err
 	}
-	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 
 	if err != nil {
 		return err
@@ -396,7 +394,7 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 
-	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 
 	if err != nil {
 		return err
@@ -423,7 +421,7 @@ func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 
 func (c *NovaPokemonClient) StartLookForNearbyRaid(timeout time.Duration) error {
 
-	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle()
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.RaidConfig.PokemonsPerRaid)
 
 	if err != nil {
 		return err
@@ -472,10 +470,10 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid(timeout time.Duration) error 
 
 // HELPER FUNCTIONS
 
-func (c *NovaPokemonClient) getPokemonsForBattle() (map[string]*pokemons.Pokemon, []string, error) {
+func (c *NovaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.Pokemon, []string, error) {
 
-	var pokemonTkns = make([]string, battles.PokemonsPerBattle)
-	var pokemonMap = make(map[string]*pokemons.Pokemon, battles.PokemonsPerBattle)
+	var pokemonTkns = make([]string, nr)
+	var pokemonMap = make(map[string]*pokemons.Pokemon, nr)
 
 	i := 0
 	for _, tkn := range c.trainersClient.PokemonClaims {
@@ -485,7 +483,7 @@ func (c *NovaPokemonClient) getPokemonsForBattle() (map[string]*pokemons.Pokemon
 		}
 
 		pokemonId := tkn.Pokemon.Id.Hex()
-		if i == battles.PokemonsPerBattle {
+		if i == nr {
 			break
 		}
 		pokemonTkns[i] = c.trainersClient.PokemonTokens[pokemonId]
@@ -493,7 +491,7 @@ func (c *NovaPokemonClient) getPokemonsForBattle() (map[string]*pokemons.Pokemon
 		pokemonMap[pokemonId] = &aux
 		i++
 	}
-	if i < battles.PokemonsPerBattle {
+	if i < nr {
 		return nil, nil, errors.New("not enough alive pokemons to battle")
 	}
 
@@ -548,6 +546,10 @@ func loadConfig() (*utils.ClientConfig, error) {
 		log.Error(err)
 		return nil, err
 	}
+	log.Infof("Loaded battles client config: %+v", clientConfig.BattleConfig)
+	log.Infof("Loaded trades client config: %+v", clientConfig.TradeConfig)
+	log.Infof("Loaded gym client config: %+v", clientConfig.RaidConfig)
+	log.Infof("Loaded location client config: %+v", clientConfig.LocationConfig)
 
 	return &clientConfig, nil
 }
