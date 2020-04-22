@@ -36,7 +36,6 @@ type NovaPokemonClient struct {
 	notificationsClient *clients.NotificationClient
 	trainersClient      *clients.TrainersClient
 	storeClient         *clients.StoreClient
-	generatorClient     *clients.GeneratorClient
 	locationClient      *clients.LocationClient
 	gymsClient          *clients.GymClient
 
@@ -63,17 +62,14 @@ func (c *NovaPokemonClient) init() {
 	c.emitFinish = make(chan struct{})
 	c.receiveFinish = make(chan bool)
 
-	c.authClient = clients.NewAuthClient(fmt.Sprintf("%s:%d", utils.Host, utils.AuthenticationPort))
-	c.battlesClient = &clients.BattleLobbyClient{
-		BattlesAddr: fmt.Sprintf("%s:%d", utils.Host, utils.BattlesPort),
-	}
-	c.tradesClient = clients.NewTradesClient(fmt.Sprintf("%s:%d", utils.Host, utils.TradesPort), c.config.TradeConfig)
-	c.notificationsClient = clients.NewNotificationClient(fmt.Sprintf("%s:%d", utils.Host, utils.NotificationsPort), c.notificationsChannel)
-	c.trainersClient = clients.NewTrainersClient(fmt.Sprintf("%s:%d", utils.Host, utils.TrainersPort), httpCLient)
-	c.storeClient = clients.NewStoreClient(fmt.Sprintf("%s:%d", utils.Host, utils.StorePort))
-	c.generatorClient = clients.NewGeneratorClient(fmt.Sprintf("%s:%d", utils.Host, utils.GeneratorPort))
-	c.locationClient = clients.NewLocationClient(fmt.Sprintf("%s:%d", utils.Host, utils.LocationPort), c.config.LocationConfig)
-	c.gymsClient = clients.NewGymClient(fmt.Sprintf("%s:%d", utils.Host, utils.GymPort), httpCLient)
+	c.authClient = clients.NewAuthClient()
+	c.battlesClient = clients.NewBattlesClient()
+	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig)
+	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel)
+	c.trainersClient = clients.NewTrainersClient(httpCLient)
+	c.storeClient = clients.NewStoreClient()
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig)
+	c.gymsClient = clients.NewGymClient(httpCLient)
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
