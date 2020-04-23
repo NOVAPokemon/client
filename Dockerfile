@@ -7,4 +7,4 @@ WORKDIR /service
 COPY $executable .
 COPY configs.json .
 
-CMD ["$executable"]
+ENTRYPOINT ./$executable
