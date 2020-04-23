@@ -37,7 +37,7 @@ func main() {
 
 	err := client.RegisterAndGetTokens()
 	if err != nil {
-		log.Error(err)
+		log.Error("err registering: ", err)
 		return
 	}
 

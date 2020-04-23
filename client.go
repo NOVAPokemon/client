@@ -196,7 +196,7 @@ func (c *NovaPokemonClient) ReadOperation() {
 		reader := bufio.NewReader(os.Stdin)
 		command, err := reader.ReadString('\n')
 		if err != nil {
-			log.Error(err)
+			log.Error("err reading from stdin: ", err)
 			return
 		}
 		c.operationsChannel <- Operation([]rune(strings.TrimSpace(command))[0])
