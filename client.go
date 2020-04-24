@@ -199,7 +199,13 @@ func (c *NovaPokemonClient) ReadOperation() {
 			log.Error("err reading from stdin: ", err)
 			return
 		}
-		c.operationsChannel <- Operation([]rune(strings.TrimSpace(command))[0])
+		trimmed := strings.TrimSpace(command)
+
+		if len(trimmed) > 0 {
+			c.operationsChannel <- Operation([]rune(trimmed)[0])
+		} else {
+			c.operationsChannel <- Operation(NoOp)
+		}
 	}
 }
 
@@ -217,6 +223,8 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 		return false, c.CatchWildPokemon()
 	case RaidCmd:
 		return false, c.StartLookForNearbyRaid(30 * time.Second)
+	case NoOp:
+		return false, nil
 	case ExitCmd:
 		return true, nil
 	default:

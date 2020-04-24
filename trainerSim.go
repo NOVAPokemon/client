@@ -22,6 +22,7 @@ const (
 	StoreCmd     Operation = 's'
 	CatchCmd     Operation = 'c'
 	RaidCmd      Operation = 'r'
+	NoOp         Operation = 'h'
 	ExitCmd      Operation = 'e'
 )
 
