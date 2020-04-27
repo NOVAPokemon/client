@@ -204,7 +204,7 @@ func (c *NovaPokemonClient) ReadOperation() {
 		if len(trimmed) > 0 {
 			c.operationsChannel <- Operation([]rune(trimmed)[0])
 		} else {
-			c.operationsChannel <- Operation(NoOp)
+			c.operationsChannel <- NoOp
 		}
 	}
 }
