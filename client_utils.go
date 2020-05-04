@@ -8,14 +8,14 @@ import (
 	"github.com/NOVAPokemon/utils/websockets"
 	"github.com/NOVAPokemon/utils/websockets/battles"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"math"
 	"math/rand"
 	"time"
 )
 
-func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels, chosenPokemons map[string]*pokemons.Pokemon) error {
+func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels,
+	chosenPokemons map[string]*pokemons.Pokemon) error {
 	defer websockets.CloseConnection(conn)
 
 	rand.Seed(time.Now().Unix())
@@ -66,9 +66,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			}
 
 			msgParsed, err := websockets.ParseMessage(msg)
-
 			if err != nil {
-				return err
+				return wrapAutoManageBattleError(err)
 			}
 
 			switch msgParsed.MsgType {
@@ -78,7 +77,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			case battles.Error:
 				errMsg := battles.DeserializeBattleMsg(msgParsed).(*battles.ErrorMessage)
 				if errMsg.Fatal {
-					return errors.New(errMsg.Info)
+					return wrapAutoManageBattleError(newBattleErrorMsgError(errMsg.Info))
 				} else {
 					log.Warn(errMsg.Info)
 				}
@@ -156,8 +155,9 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 	if selectedPokemon == nil {
 		newPokemon, err := changeActivePokemon(trainerPokemons, outChannel)
 		if err != nil {
-			return err
+			return wrapNextBattleMoveError(err)
 		}
+
 		selectedPokemon = newPokemon
 		return nil
 	}
@@ -174,12 +174,13 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			useItemMsg.LogEmit(battles.UseItem)
 			toSend := useItemMsg.SerializeToWSMessage()
 			websockets.SendMessage(*toSend, outChannel)
+
 			return nil
 		} // no revive, switch pokemon
 
 		newPokemon, err := changeActivePokemon(trainerPokemons, outChannel)
 		if err != nil {
-			return err
+			return wrapNextBattleMoveError(err)
 		}
 		selectedPokemon = newPokemon
 		return nil
@@ -230,7 +231,8 @@ func getReviveItem(trainerItems map[string]items.Item) (*items.Item, error) {
 			return &item, nil
 		}
 	}
-	return nil, errors.New("No revive item")
+
+	return nil, errorNoReviveItem
 }
 
 func getItemToUseOnPokemon(trainerItems map[string]items.Item) (*items.Item, error) {
@@ -239,14 +241,14 @@ func getItemToUseOnPokemon(trainerItems map[string]items.Item) (*items.Item, err
 			return &item, nil
 		}
 	}
-	return nil, errors.New("No appliable items")
+
+	return nil, errorNoAppliableItems
 }
 
 func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan *string) (*pokemons.Pokemon, error) {
 	nextPokemon, err := getAlivePokemon(pokemons)
 	if err != nil {
-		log.Error("No pokemons alive")
-		return nil, err
+		return nil, wrapChangeActivePokemonError(err)
 	}
 	log.Infof("Selecting pokemon:\tID:%s, HP: %d, Species: %s", nextPokemon.Id.Hex(),
 		nextPokemon.HP,
@@ -268,22 +270,20 @@ func getAlivePokemon(pokemons map[string]*pokemons.Pokemon) (*pokemons.Pokemon, 
 		}
 	}
 
-	return nil, errors.New("No pokemons alive")
+	return nil, errorNoPokemonAlive
 }
 
 func RandomString(n int) string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
-	rand.Seed(time.Now().UnixNano())
-
 	s := make([]rune, n)
 	for i := range s {
 		s[i] = letters[rand.Intn(len(letters))]
 	}
+
 	return string(s)
 }
 
 func RandInt(min int, max int) int {
-	rand.Seed(time.Now().UTC().UnixNano())
 	return min + rand.Intn(max-min)
 }

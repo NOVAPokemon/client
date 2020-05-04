@@ -51,7 +51,7 @@ var httpCLient = &http.Client{}
 func (c *NovaPokemonClient) init() {
 	config, err := loadConfig()
 	if err != nil {
-		log.Fatal("error loading configs")
+		log.Fatal(err)
 	}
 
 	c.config = config
@@ -91,27 +91,27 @@ func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID) {
 
 func (c *NovaPokemonClient) RegisterAndGetTokens() error {
 	err := c.authClient.Register(c.Username, c.Password)
-
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapRegisterAndGetTokensError(err)
 	}
 
-	return c.LoginAndGetTokens()
+	err = c.LoginAndGetTokens()
+	if err != nil {
+		return wrapRegisterAndGetTokensError(err)
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) LoginAndGetTokens() error {
 	err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapLoginAndGeTokensError(err)
 	}
 
 	err = c.trainersClient.GetAllTrainerTokens(c.Username, c.authClient.AuthToken)
-
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapLoginAndGeTokensError(err)
 	}
 
 	return nil
@@ -196,7 +196,7 @@ func (c *NovaPokemonClient) ReadOperation() {
 		reader := bufio.NewReader(os.Stdin)
 		command, err := reader.ReadString('\n')
 		if err != nil {
-			log.Error("err reading from stdin: ", err)
+			log.Error(utils.WrapErrorReadStdin(err))
 			return
 		}
 		trimmed := strings.TrimSpace(command)
@@ -228,14 +228,14 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 	case ExitCmd:
 		return true, nil
 	default:
-		return false, errors.New("invalid command")
+		return false, errorInvalidCommand
 	}
 }
 
 func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification) {
 	switch notification.Type {
 	case notifications.WantsToTrade:
-		err := c.WantingTrade(notification)
+		err := c.handleTradeNotification(notification)
 		if err != nil {
 			log.Error(err)
 		}
@@ -251,35 +251,45 @@ func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification
 func (c *NovaPokemonClient) BuyRandomItem() error {
 	items, err := c.storeClient.GetItems(c.authClient.AuthToken)
 	if err != nil {
-		return err
+		return wrapBuyRandomItemError(err)
 	}
 
 	randomItem := items[rand.Intn(len(items))]
 	statsToken, itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
 	if err != nil {
-		return err
+		return wrapBuyRandomItemError(err)
 	}
 
 	err = c.trainersClient.SetItemsToken(itemsToken)
-
 	if err != nil {
-		return err
+		return wrapBuyRandomItemError(err)
 	}
 
-	return c.trainersClient.SetTrainerStatsToken(statsToken)
+	err = c.trainersClient.SetTrainerStatsToken(statsToken)
+	if err != nil {
+		return wrapBuyRandomItemError(err)
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) CatchWildPokemon() error {
 	caught, responseHeader, err := c.locationClient.CatchWildPokemon(c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	if err != nil {
-		return err
+		return wrapCatchWildPokemonError(err)
 	}
+
 	if !caught {
 		log.Info("pokemon got away")
 		return nil
 	}
 
-	return c.trainersClient.AppendPokemonToken(responseHeader)
+	err = c.trainersClient.AppendPokemonToken(responseHeader)
+	if err != nil {
+		return wrapCatchWildPokemonError(err)
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) Finish() {
@@ -292,7 +302,7 @@ func (c *NovaPokemonClient) Finish() {
 func (c *NovaPokemonClient) startAutoChallenge() error {
 	trainers, err := c.notificationsClient.GetOthersListening(c.authClient.AuthToken)
 	if err != nil {
-		return err
+		return wrapStartAutoChallengeError(err)
 	}
 
 	if len(trainers) == 0 {
@@ -305,15 +315,19 @@ func (c *NovaPokemonClient) startAutoChallenge() error {
 	challengePlayer := trainers[rand.Intn(len(trainers))]
 	log.Info("Will trade with ", challengePlayer)
 
-	return c.ChallengePlayer(challengePlayer)
+	err = c.ChallengePlayer(challengePlayer)
+	if err != nil {
+		return wrapStartAutoChallengeError(err)
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
-
 	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 
 	if err != nil {
-		return err
+		return wrapChallengePlayerError(err)
 	}
 
 	conn, channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken,
@@ -323,16 +337,21 @@ func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 		otherPlayer)
 
 	if err != nil {
-		return err
+		return wrapChallengePlayerError(err)
 	}
 
-	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+	if err != nil {
+		return wrapChallengePlayerError(err)
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) startAutoTrade() error {
 	trainers, err := c.notificationsClient.GetOthersListening(c.authClient.AuthToken)
 	if err != nil {
-		return err
+		return wrapStartAutoTrade(err)
 	}
 
 	if len(trainers) == 0 {
@@ -351,18 +370,16 @@ func (c *NovaPokemonClient) startAutoTrade() error {
 
 // Notification Handlers
 
-func (c *NovaPokemonClient) WantingTrade(notification *utils.Notification) error {
+func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notification) error {
 	var content notifications.WantsToTradeContent
 	err := json.Unmarshal(notification.Content, &content)
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapHandleTradeNotificationError(err)
 	}
 
 	lobbyId, err := primitive.ObjectIDFromHex(content.LobbyId)
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapHandleTradeNotificationError(err)
 	}
 
 	c.JoinTradeWithPlayer(&lobbyId)
@@ -374,13 +391,12 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 	log.Info("I was challenged to a battle")
 	battleId, err := primitive.ObjectIDFromHex(string(notification.Content))
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapHandleBattleNotificationError(err)
 	}
-	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 
+	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 	if err != nil {
-		return err
+		return wrapHandleBattleNotificationError(err)
 	}
 
 	conn, channels, err := c.battlesClient.AcceptChallenge(c.authClient.AuthToken,
@@ -390,18 +406,21 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 		battleId)
 
 	if err != nil {
-		return err
+		return wrapHandleBattleNotificationError(err)
 	}
 
-	return autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+	if err != nil {
+		return wrapHandleBattleNotificationError(err)
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
-
 	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
-
 	if err != nil {
-		return err
+		return wrapStartAutoBattleQueueError(err)
 	}
 
 	conn, channels, err := c.battlesClient.QueueForBattle(c.authClient.AuthToken,
@@ -410,25 +429,21 @@ func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 		c.trainersClient.ItemsToken)
 
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapStartAutoBattleQueueError(err)
 	}
 
 	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 	if err != nil {
-		log.Error(err)
-		return err
+		return wrapStartAutoBattleQueueError(err)
 	}
 
 	return nil
 }
 
-func (c *NovaPokemonClient) StartLookForNearbyRaid(timeout time.Duration) error {
-
+func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.RaidConfig.PokemonsPerRaid)
-
 	if err != nil {
-		return err
+		return wrapStartLookForRaid(err)
 	}
 
 	ticker := time.NewTicker(1 * time.Second)
@@ -439,7 +454,7 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid(timeout time.Duration) error 
 		for i := 0; i < len(gyms); i++ {
 			gym, err := c.gymsClient.GetGymInfo(gyms[i].Name)
 			if err != nil {
-				return err
+				return wrapStartLookForRaid(err)
 			}
 
 			if gym.RaidBoss == nil || gym.RaidBoss.HP == 0 {
@@ -451,22 +466,20 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid(timeout time.Duration) error 
 			if !gym.RaidForming {
 				log.Info("Creating a new raid...")
 				if err = c.gymsClient.CreateRaid(gym.Name); err != nil {
-					log.Error(err)
-					return err
+					return wrapStartLookForRaid(err)
 				}
 			}
 			log.Info("Dialing raids...")
 			conn, channels, err := c.gymsClient.EnterRaid(c.authClient.AuthToken, pokemonTkns, c.trainersClient.TrainerStatsToken, c.trainersClient.ItemsToken, gym.Name)
 			if err != nil {
-				log.Error(err)
-				return err
+				return wrapStartLookForRaid(err)
 			}
 
 			err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 			if err != nil {
-				log.Error(err)
-				return err
+				return wrapStartLookForRaid(err)
 			}
+
 			return nil
 		}
 	}
@@ -475,7 +488,6 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid(timeout time.Duration) error 
 // HELPER FUNCTIONS
 
 func (c *NovaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.Pokemon, []string, error) {
-
 	var pokemonTkns = make([]string, nr)
 	var pokemonMap = make(map[string]*pokemons.Pokemon, nr)
 
@@ -495,8 +507,9 @@ func (c *NovaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.P
 		pokemonMap[pokemonId] = &aux
 		i++
 	}
+
 	if i < nr {
-		return nil, nil, errors.New("not enough alive pokemons to battle")
+		return nil, nil, errorNotEnoughPokemons
 	}
 
 	return pokemonMap, pokemonTkns, nil
@@ -540,16 +553,15 @@ func (c *NovaPokemonClient) validatePokemonTokens() {
 func loadConfig() (*utils.ClientConfig, error) {
 	fileData, err := ioutil.ReadFile(configFilename)
 	if err != nil {
-		log.Error(err)
-		return nil, err
+		return nil, utils.WrapErrorLoadConfigs(err)
 	}
 
 	var clientConfig utils.ClientConfig
 	err = json.Unmarshal(fileData, &clientConfig)
 	if err != nil {
-		log.Error(err)
-		return nil, err
+		return nil, utils.WrapErrorLoadConfigs(err)
 	}
+
 	log.Infof("Loaded battles client config: %+v", clientConfig.BattleConfig)
 	log.Infof("Loaded trades client config: %+v", clientConfig.TradeConfig)
 	log.Infof("Loaded gym client config: %+v", clientConfig.RaidConfig)

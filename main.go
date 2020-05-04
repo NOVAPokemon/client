@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"math/rand"
+	"time"
 )
 
 //func main() {
@@ -19,6 +21,7 @@ import (
 //}
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 
 	flag.Usage = func() {
 		fmt.Printf("Usage\n")
@@ -37,7 +40,7 @@ func main() {
 
 	err := client.RegisterAndGetTokens()
 	if err != nil {
-		log.Error("err registering: ", err)
+		log.Error(err)
 		return
 	}
 
