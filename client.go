@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
@@ -222,7 +221,7 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 	case CatchCmd:
 		return false, c.CatchWildPokemon()
 	case RaidCmd:
-		return false, c.StartLookForNearbyRaid(30 * time.Second)
+		return false, c.StartLookForNearbyRaid()
 	case NoOp:
 		return false, nil
 	case ExitCmd:
