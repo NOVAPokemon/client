@@ -71,21 +71,30 @@ func (c *NovaPokemonClient) init() {
 	c.gymsClient = clients.NewGymClient(httpCLient)
 }
 
-func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) {
-	lobbyId := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) error {
+	lobbyId, err := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+	if err != nil {
+		return wrapStartTradeError(err)
+	}
+
 	log.Info("Created lobby ", lobbyId)
 
-	c.JoinTradeWithPlayer(lobbyId)
+	return c.JoinTradeWithPlayer(lobbyId)
 }
 
-func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID) {
-	newItemTokens := c.tradesClient.JoinTradeLobby(lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID) error {
+	newItemTokens, err := c.tradesClient.JoinTradeLobby(lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+	if err != nil {
+		return wrapJoinTradeError(err)
+	}
 
 	if newItemTokens != nil {
 		if err := c.trainersClient.SetItemsToken(*newItemTokens); err != nil {
-			log.Error(err)
+			return wrapJoinTradeError(err)
 		}
 	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) RegisterAndGetTokens() error {
@@ -117,17 +126,28 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 }
 
 func (c *NovaPokemonClient) StartListeningToNotifications() {
-	go c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
+	go func() {
+		err := c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
+		if err != nil {
+			log.Error(err)
+		}
+	}()
 }
 
 func (c *NovaPokemonClient) StartUpdatingLocation() {
-	go c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
+	go func() {
+		err := c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
+		if err != nil {
+			log.Error(err)
+		}
+	}()
 }
 
 func (c *NovaPokemonClient) MainLoopAuto() {
 	defer c.validateStatsTokens()
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
+
 	const waitTime = 2 * time.Second
 	waitNotificationsTimer := time.NewTimer(waitTime)
 	autoClient := NewTrainerSim()
@@ -362,9 +382,8 @@ func (c *NovaPokemonClient) startAutoTrade() error {
 
 	tradeWith := trainers[rand.Intn(len(trainers))]
 	log.Info("Will trade with ", tradeWith)
-	c.StartTradeWithPlayer(tradeWith)
 
-	return nil
+	return wrapStartAutoTrade(c.StartTradeWithPlayer(tradeWith))
 }
 
 // Notification Handlers
@@ -381,9 +400,7 @@ func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notifica
 		return wrapHandleTradeNotificationError(err)
 	}
 
-	c.JoinTradeWithPlayer(&lobbyId)
-
-	return nil
+	return wrapHandleTradeNotificationError(c.JoinTradeWithPlayer(&lobbyId))
 }
 
 func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Notification) error {
