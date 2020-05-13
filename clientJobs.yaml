@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: novapokemon-tester
+spec:
+  completions: 2
+  parallelism: 2
+  template:
+    spec:
+      containers:
+        - name: client
+          image: "novapokemon/client:latest"
+          imagePullPolicy: Always
+          command: ["sh", "-c", "./$executable -a"]
+          envFrom:
+            - configMapRef:
+                name: "services-api"
+      restartPolicy: Never
+  backoffLimit: 4
