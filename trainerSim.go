@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/NOVAPokemon/utils/tokens"
 	log "github.com/sirupsen/logrus"
 	"math"
 	"math/rand"
@@ -76,7 +75,7 @@ func getAndVerifyProbMatrix() [][]float32 {
 	return matrix
 }
 
-func (s *TrainerSim) GetNextOperation(trainer *tokens.TrainerStatsToken, pokemons map[string]tokens.PokemonToken, items *tokens.ItemsToken) Operation {
+func (s *TrainerSim) GetNextOperation() Operation {
 
 	s.logNextProbabilities()
 

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
@@ -156,14 +157,10 @@ func (c *NovaPokemonClient) MainLoopAuto() {
 		case notification := <-c.notificationsChannel:
 			c.HandleNotifications(notification)
 		case <-waitNotificationsTimer.C:
-			nextOp := autoClient.GetNextOperation(
-				c.trainersClient.TrainerStatsClaims,
-				c.trainersClient.PokemonClaims,
-				c.trainersClient.ItemsClaims)
+			nextOp := autoClient.GetNextOperation()
 			exit, err := c.TestOperation(nextOp)
 			if err != nil {
 				log.Error(err)
-				continue
 			} else if exit {
 				return
 			}
@@ -464,41 +461,39 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	for {
-		<-ticker.C
-		gyms := c.locationClient.Gyms
-		for i := 0; i < len(gyms); i++ {
-			gym, err := c.gymsClient.GetGymInfo(gyms[i].Name)
-			if err != nil {
-				return wrapStartLookForRaid(err)
-			}
-
-			if gym.RaidBoss == nil || gym.RaidBoss.HP == 0 {
-				log.Info("Raidboss was nil or had no hp")
-				continue
-			}
-
-			log.Info("ongoing raid :", gym.RaidForming)
-			if !gym.RaidForming {
-				log.Info("Creating a new raid...")
-				if err = c.gymsClient.CreateRaid(gym.Name); err != nil {
-					return wrapStartLookForRaid(err)
-				}
-			}
-			log.Info("Dialing raids...")
-			conn, channels, err := c.gymsClient.EnterRaid(c.authClient.AuthToken, pokemonTkns, c.trainersClient.TrainerStatsToken, c.trainersClient.ItemsToken, gym.Name)
-			if err != nil {
-				return wrapStartLookForRaid(err)
-			}
-
-			err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
-			if err != nil {
-				return wrapStartLookForRaid(err)
-			}
-
-			return nil
+	gyms := c.locationClient.Gyms
+	for i := 0; i < len(gyms); i++ {
+		gym, err := c.gymsClient.GetGymInfo(gyms[i].Name)
+		if err != nil {
+			return wrapStartLookForRaid(err)
 		}
+
+		if gym.RaidBoss == nil || gym.RaidBoss.HP == 0 {
+			log.Info("Raidboss was nil or had no hp")
+			continue
+		}
+
+		log.Info("ongoing raid :", gym.RaidForming)
+		if !gym.RaidForming {
+			log.Info("Creating a new raid...")
+			if err = c.gymsClient.CreateRaid(gym.Name); err != nil {
+				return wrapStartLookForRaid(err)
+			}
+		}
+		log.Info("Dialing raids...")
+		conn, channels, err := c.gymsClient.EnterRaid(c.authClient.AuthToken, pokemonTkns, c.trainersClient.TrainerStatsToken, c.trainersClient.ItemsToken, gym.Name)
+		if err != nil {
+			return wrapStartLookForRaid(err)
+		}
+
+		err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+		if err != nil {
+			return wrapStartLookForRaid(err)
+		}
+
+		return nil
 	}
+	return wrapStartLookForRaid(errors.New("there are no gyms nearby"))
 }
 
 // HELPER FUNCTIONS
