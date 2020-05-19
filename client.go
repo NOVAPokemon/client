@@ -136,7 +136,7 @@ func (c *NovaPokemonClient) StartListeningToNotifications() {
 
 func (c *NovaPokemonClient) StartUpdatingLocation() {
 	go func() {
-		err := c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
+		err := c.locationClient.StartLocationUpdates(c.authClient.AuthToken, c.trainersClient)
 		if err != nil {
 			log.Error(err)
 		}
@@ -288,22 +288,7 @@ func (c *NovaPokemonClient) BuyRandomItem() error {
 }
 
 func (c *NovaPokemonClient) CatchWildPokemon() error {
-	caught, responseHeader, err := c.locationClient.CatchWildPokemon(c.authClient.AuthToken, c.trainersClient.ItemsToken)
-	if err != nil {
-		return wrapCatchWildPokemonError(err)
-	}
-
-	if !caught {
-		log.Info("pokemon got away")
-		return nil
-	}
-
-	err = c.trainersClient.AppendPokemonToken(responseHeader)
-	if err != nil {
-		return wrapCatchWildPokemonError(err)
-	}
-
-	return nil
+	return c.locationClient.CatchWildPokemon(c.trainersClient.ItemsToken)
 }
 
 func (c *NovaPokemonClient) Finish() {
