@@ -1,7 +1,7 @@
 {
   "trades": {
-    "max_items": 2,
-    "max_sleep_time": 0
+    "max_items": 5,
+    "max_sleep_time": 500
   },
   "location": {
     "update_interval": 5,

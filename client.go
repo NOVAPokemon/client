@@ -73,18 +73,17 @@ func (c *NovaPokemonClient) init() {
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) error {
-	lobbyId, err := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+	lobbyId, serverName, err := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	if err != nil {
 		return wrapStartTradeError(err)
 	}
 
 	log.Info("Created lobby ", lobbyId)
-
-	return c.JoinTradeWithPlayer(lobbyId)
+	return c.JoinTradeWithPlayer(lobbyId, *serverName)
 }
 
-func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID) error {
-	newItemTokens, err := c.tradesClient.JoinTradeLobby(lobbyId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID, serverHostname string) error {
+	newItemTokens, err := c.tradesClient.JoinTradeLobby(lobbyId, serverHostname, c.authClient.AuthToken, c.trainersClient.ItemsToken)
 	if err != nil {
 		return wrapJoinTradeError(err)
 	}
@@ -260,7 +259,6 @@ func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification
 		if err != nil {
 			log.Error(err)
 		}
-		return
 	}
 }
 
@@ -329,7 +327,7 @@ func (c *NovaPokemonClient) startAutoChallenge() error {
 	}
 
 	challengePlayer := trainers[rand.Intn(len(trainers))]
-	log.Info("Will trade with ", challengePlayer)
+	log.Infof("Challenging %s to battle", challengePlayer)
 
 	err = c.ChallengePlayer(challengePlayer)
 	if err != nil {
@@ -397,16 +395,16 @@ func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notifica
 		return wrapHandleTradeNotificationError(err)
 	}
 
-	return wrapHandleTradeNotificationError(c.JoinTradeWithPlayer(&lobbyId))
+	return wrapHandleTradeNotificationError(c.JoinTradeWithPlayer(&lobbyId, content.ServerHostname))
 }
 
 func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Notification) error {
 	log.Info("I was challenged to a battle")
-	battleId, err := primitive.ObjectIDFromHex(string(notification.Content))
+	var content notifications.WantsToBattleContent
+	err := json.Unmarshal(notification.Content, &content)
 	if err != nil {
 		return wrapHandleBattleNotificationError(err)
 	}
-
 	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 	if err != nil {
 		return wrapHandleBattleNotificationError(err)
@@ -416,7 +414,8 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 		pokemonTkns,
 		c.trainersClient.TrainerStatsToken,
 		c.trainersClient.ItemsToken,
-		battleId)
+		content.LobbyId,
+		content.ServerHostname)
 
 	if err != nil {
 		return wrapHandleBattleNotificationError(err)
