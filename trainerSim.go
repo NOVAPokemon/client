@@ -8,21 +8,23 @@ import (
 	"time"
 )
 
-type Operation rune
+type Operation string
 
+// *** WARNING ***
+// ORDER MATTERS FOR MATRIX
 var ops = []Operation{ChallengeCmd, QueueCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd}
 
 const (
-	// *** WARNING ***
-	// ORDER MATTERS FOR MATRIX
-	ChallengeCmd Operation = 'b'
-	QueueCmd     Operation = 'q'
-	TradeCmd     Operation = 't'
-	StoreCmd     Operation = 's'
-	CatchCmd     Operation = 'c'
-	RaidCmd      Operation = 'r'
-	NoOp         Operation = 'h'
-	ExitCmd      Operation = 'e'
+	ChallengeCmd            Operation = "b"
+	ChallengeSpecificTrainerCmd Operation = "bs"
+	QueueCmd                Operation = "q"
+	TradeSpecificTrainerCmd Operation = "ts"
+	TradeCmd                Operation = "t"
+	StoreCmd                Operation = "s"
+	CatchCmd                Operation = "c"
+	RaidCmd                 Operation = "r"
+	NoOp                    Operation = "h"
+	ExitCmd                 Operation = "e"
 )
 
 type TrainerSim struct {

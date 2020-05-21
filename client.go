@@ -179,14 +179,16 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 
 	for {
 		fmt.Printf(
-			"%c - queue for battle\n"+
-				"%c - auto challenge\n"+
-				"%c - auto trade\n"+
-				"%c - buy random item\n"+
-				"%c - try to catch pokemon\n"+
-				"%c - raid closest gym\n"+
-				"%c - exit\n",
-			QueueCmd, ChallengeCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd, ExitCmd)
+			"%s - queue for battle\n"+
+				"%s - auto challenge\n"+
+				"%s - challenge specific trainer\n"+
+				"%s - auto trade\n"+
+				"%s - trade with specific trainer\n"+
+				"%s - buy random item\n"+
+				"%s - try to catch pokemon\n"+
+				"%s - raid closest gym\n"+
+				"%s - exit\n",
+			QueueCmd, ChallengeCmd, ChallengeSpecificTrainerCmd, TradeCmd, TradeSpecificTrainerCmd, StoreCmd, CatchCmd, RaidCmd, ExitCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
@@ -215,9 +217,8 @@ func (c *NovaPokemonClient) ReadOperation() {
 			return
 		}
 		trimmed := strings.TrimSpace(command)
-
 		if len(trimmed) > 0 {
-			c.operationsChannel <- Operation([]rune(trimmed)[0])
+			c.operationsChannel <- Operation(trimmed)
 		} else {
 			c.operationsChannel <- NoOp
 		}
@@ -225,13 +226,28 @@ func (c *NovaPokemonClient) ReadOperation() {
 }
 
 func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
-	switch operation {
+	split := strings.Split(string(operation), " ")
+	log.Infof("Issued operation: %s, args: %s", split[0], split[1:])
+	switch Operation(split[0]) {
 	case ChallengeCmd:
 		return false, c.startAutoChallenge()
+	case ChallengeSpecificTrainerCmd:
+		if len(split) > 1 {
+			return false, c.ChallengePlayer(split[1])
+		} else {
+			return false, errors.New("missing trainer name")
+		}
 	case QueueCmd:
 		return false, c.StartAutoBattleQueue()
 	case TradeCmd:
 		return false, c.startAutoTrade()
+	case TradeSpecificTrainerCmd:
+		split := strings.Split(string(operation), " ")
+		if len(split) > 1 {
+			return false, c.StartTradeWithPlayer(split[1])
+		} else {
+			return false, errors.New("missing trainer name")
+		}
 	case StoreCmd:
 		return false, c.BuyRandomItem()
 	case CatchCmd:
