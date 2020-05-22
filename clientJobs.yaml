@@ -16,4 +16,6 @@ spec:
             - configMapRef:
                 name: "services-api"
       restartPolicy: Never
+      nodeSelector:
+        nodetype: "clients"
   backoffLimit: 4
