@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+var (
+	totalTimeTookBattleMsgs  int64 = 0
+	numberMeasuresBattleMsgs       = 0
+)
+
 func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels,
 	chosenPokemons map[string]*pokemons.Pokemon) error {
 	defer ws.CloseConnection(conn)
@@ -95,6 +100,16 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 				updatePokemonMsg := desMsg.(*battles.UpdatePokemonMessage)
 				updatePokemonMsg.Receive(ws.MakeTimestamp())
+
+				timeTook, ok := updatePokemonMsg.TimeTook()
+				if ok {
+					totalTimeTookBattleMsgs += timeTook
+					numberMeasuresBattleMsgs++
+					log.Infof("time took: %d ms", timeTook)
+					log.Infof("average time for battle msgs: %f ms",
+						float64(totalTimeTookBattleMsgs)/float64(numberMeasuresBattleMsgs))
+				}
+
 				updatePokemonMsg.LogReceive(battles.UpdatePokemon)
 
 				updatedPokemon := updatePokemonMsg.Pokemon
