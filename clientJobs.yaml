@@ -15,6 +15,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: "services-api"
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
       restartPolicy: Never
       nodeSelector:
         clientsnode: "true"

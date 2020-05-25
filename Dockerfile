@@ -1,4 +1,4 @@
-FROM alpine:latest
+FROM debian:latest
 
 ENV executable="executable"
 RUN mkdir /service
