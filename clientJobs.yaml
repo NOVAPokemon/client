@@ -3,8 +3,8 @@ kind: Job
 metadata:
   name: novapokemon-tester
 spec:
-  completions: 2
-  parallelism: 2
+  completions: 6
+  parallelism: 6
   template:
     spec:
       containers:
@@ -17,5 +17,5 @@ spec:
                 name: "services-api"
       restartPolicy: Never
       nodeSelector:
-        nodetype: "clients"
+        clientsnode: "true"
   backoffLimit: 4
