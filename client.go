@@ -493,7 +493,10 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 
 		return nil
 	}
-	return wrapStartLookForRaid(errors.New("there are no gyms nearby"))
+
+	log.Warn(wrapStartLookForRaid(errors.New("there are no gyms nearby")))
+
+	return nil
 }
 
 // HELPER FUNCTIONS
