@@ -22,6 +22,9 @@ import (
 const (
 	configFilename           = "configs.json"
 	maxNotificationsBuffered = 10
+
+	AUTO = "AUTO"
+	CLI  = "CLI"
 )
 
 type NovaPokemonClient struct {
@@ -161,7 +164,7 @@ func (c *NovaPokemonClient) MainLoopAuto() {
 	for {
 		select {
 		case notification := <-c.notificationsChannel:
-			c.HandleNotifications(notification, c.operationsChannel)
+			c.HandleNotifications(notification, c.operationsChannel, AUTO)
 		case <-waitNotificationsTimer.C:
 			nextOp := autoClient.GetNextOperation()
 			exit, err := c.TestOperation(nextOp)
@@ -199,7 +202,7 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 
 		select {
 		case notification := <-c.notificationsChannel:
-			c.HandleNotifications(notification, c.operationsChannel)
+			c.HandleNotifications(notification, c.operationsChannel, CLI)
 		case operation := <-c.operationsChannel:
 			exit, err := c.TestOperation(operation)
 			if err != nil {
@@ -270,31 +273,47 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 	}
 }
 
-func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification, operationsChannel chan Operation) {
-	log.Infof("got notification: %s"+
-		"%s - accept"+
-		"%s - reject", notification.Type, AcceptCmd, RejectCmd)
+func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification, operationsChannel chan Operation,
+	clientMode string) {
 
-	rejected := false
+	var (
+		rejected       bool
+		rejectedChance float64
+	)
+	if clientMode == CLI {
+		log.Infof("got notification: %s"+
+			"%s - accept"+
+			"%s - reject", notification.Type, AcceptCmd, RejectCmd)
 
-	select {
-	case op := <-operationsChannel:
-		switch op {
-		case AcceptCmd:
-		case RejectCmd:
-			rejected = true
-		default:
-			log.Warnf("invalid notification response: %s", op)
+		select {
+		case op := <-operationsChannel:
+			switch op {
+			case AcceptCmd:
+			case RejectCmd:
+				rejected = true
+			default:
+				log.Warnf("invalid notification response: %s", op)
+			}
 		}
+	} else if clientMode == AUTO {
+		rejectedChance = rand.Float64()
 	}
 
 	switch notification.Type {
 	case notifications.WantsToTrade:
+		if clientMode == AUTO {
+			rejected = rejectedChance < c.config.TradeConfig.AcceptProbability
+		}
+
 		err := c.handleTradeNotification(notification, rejected)
 		if err != nil {
 			log.Error(err)
 		}
 	case notifications.ChallengeToBattle:
+		if clientMode == AUTO {
+			rejected = rejectedChance < c.config.BattleConfig.AcceptProbability
+		}
+
 		err := c.handleChallengeNotification(notification, rejected)
 		if err != nil {
 			log.Error(err)
