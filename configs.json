@@ -1,7 +1,8 @@
 {
   "trades": {
     "max_items": 5,
-    "max_sleep_time": 500
+    "max_sleep_time": 500,
+    "accept_probability": 0.5
   },
   "location": {
     "update_interval": 5,
@@ -17,7 +18,8 @@
     }
   },
   "battles": {
-    "pokemons_per_battle": 2
+    "pokemons_per_battle": 2,
+    "accept_probability": 0.5
   },
   "raids": {
     "pokemons_per_raid": 3

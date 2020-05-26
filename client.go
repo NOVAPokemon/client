@@ -83,7 +83,8 @@ func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) error {
 }
 
 func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID, serverHostname string) error {
-	newItemTokens, err := c.tradesClient.JoinTradeLobby(lobbyId, serverHostname, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+	newItemTokens, err := c.tradesClient.JoinTradeLobby(lobbyId, serverHostname, c.authClient.AuthToken,
+		c.trainersClient.ItemsToken)
 	if err != nil {
 		return wrapJoinTradeError(err)
 	}
@@ -95,6 +96,12 @@ func (c *NovaPokemonClient) JoinTradeWithPlayer(lobbyId *primitive.ObjectID, ser
 	}
 
 	return nil
+}
+
+func (c *NovaPokemonClient) RejectTradeWithPlayer(lobbyId *primitive.ObjectID, serverHostname string) error {
+	err := c.tradesClient.RejectTrade(lobbyId, serverHostname, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+
+	return wrapRejectTradeError(err)
 }
 
 func (c *NovaPokemonClient) RegisterAndGetTokens() error {
@@ -154,7 +161,7 @@ func (c *NovaPokemonClient) MainLoopAuto() {
 	for {
 		select {
 		case notification := <-c.notificationsChannel:
-			c.HandleNotifications(notification)
+			c.HandleNotifications(notification, c.operationsChannel)
 		case <-waitNotificationsTimer.C:
 			nextOp := autoClient.GetNextOperation()
 			exit, err := c.TestOperation(nextOp)
@@ -192,7 +199,7 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 
 		select {
 		case notification := <-c.notificationsChannel:
-			c.HandleNotifications(notification)
+			c.HandleNotifications(notification, c.operationsChannel)
 		case operation := <-c.operationsChannel:
 			exit, err := c.TestOperation(operation)
 			if err != nil {
@@ -263,15 +270,32 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 	}
 }
 
-func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification) {
+func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification, operationsChannel chan Operation) {
+	log.Infof("got notification: %s"+
+		"%s - accept"+
+		"%s - reject", notification.Type, AcceptCmd, RejectCmd)
+
+	rejected := false
+
+	select {
+	case op := <-operationsChannel:
+		switch op {
+		case AcceptCmd:
+		case RejectCmd:
+			rejected = true
+		default:
+			log.Warnf("invalid notification response: %s", op)
+		}
+	}
+
 	switch notification.Type {
 	case notifications.WantsToTrade:
-		err := c.handleTradeNotification(notification)
+		err := c.handleTradeNotification(notification, rejected)
 		if err != nil {
 			log.Error(err)
 		}
 	case notifications.ChallengeToBattle:
-		err := c.handleChallengeNotification(notification)
+		err := c.handleChallengeNotification(notification, rejected)
 		if err != nil {
 			log.Error(err)
 		}
@@ -384,7 +408,7 @@ func (c *NovaPokemonClient) startAutoTrade() error {
 
 // Notification Handlers
 
-func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notification) error {
+func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notification, rejected bool) error {
 	var content notifications.WantsToTradeContent
 	err := json.Unmarshal(notification.Content, &content)
 	if err != nil {
@@ -396,38 +420,48 @@ func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notifica
 		return wrapHandleTradeNotificationError(err)
 	}
 
-	return wrapHandleTradeNotificationError(c.JoinTradeWithPlayer(&lobbyId, content.ServerHostname))
+	if rejected {
+		err = wrapHandleTradeNotificationError(c.RejectTradeWithPlayer(&lobbyId, content.ServerHostname))
+	} else {
+		err = wrapHandleTradeNotificationError(c.JoinTradeWithPlayer(&lobbyId, content.ServerHostname))
+	}
+
+	return err
 }
 
-func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Notification) error {
+func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Notification, rejected bool) error {
 	log.Info("I was challenged to a battle")
+
 	var content notifications.WantsToBattleContent
+
 	err := json.Unmarshal(notification.Content, &content)
 	if err != nil {
 		return wrapHandleBattleNotificationError(err)
 	}
+
 	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
 	if err != nil {
 		return wrapHandleBattleNotificationError(err)
 	}
 
-	conn, channels, err := c.battlesClient.AcceptChallenge(c.authClient.AuthToken,
-		pokemonTkns,
-		c.trainersClient.TrainerStatsToken,
-		c.trainersClient.ItemsToken,
-		content.LobbyId,
-		content.ServerHostname)
+	if rejected {
+		err = c.battlesClient.RejectChallenge(c.authClient.AuthToken, content.LobbyId, content.ServerHostname)
+	} else {
+		conn, channels, err := c.battlesClient.AcceptChallenge(c.authClient.AuthToken,
+			pokemonTkns,
+			c.trainersClient.TrainerStatsToken,
+			c.trainersClient.ItemsToken,
+			content.LobbyId,
+			content.ServerHostname)
 
-	if err != nil {
-		return wrapHandleBattleNotificationError(err)
+		if err != nil {
+			return wrapHandleBattleNotificationError(err)
+		}
+
+		err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
 	}
 
-	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
-	if err != nil {
-		return wrapHandleBattleNotificationError(err)
-	}
-
-	return nil
+	return wrapHandleBattleNotificationError(err)
 }
 
 func (c *NovaPokemonClient) StartAutoBattleQueue() error {
