@@ -281,9 +281,9 @@ func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification
 		rejectedChance float64
 	)
 	if clientMode == CLI {
-		log.Infof("got notification: %s"+
-			"%s - accept"+
-			"%s - reject", notification.Type, AcceptCmd, RejectCmd)
+		log.Infof("got notification: %s\n"+
+			"%s - accept\n"+
+			"%s - reject\n", notification.Type, AcceptCmd, RejectCmd)
 
 		select {
 		case op := <-operationsChannel:
@@ -293,6 +293,7 @@ func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification
 				rejected = true
 			default:
 				log.Warnf("invalid notification response: %s", op)
+				return
 			}
 		}
 	} else if clientMode == AUTO {
@@ -388,7 +389,8 @@ func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 		return wrapChallengePlayerError(err)
 	}
 
-	conn, channels, err := c.battlesClient.ChallengePlayerToBattle(c.authClient.AuthToken,
+	conn, channels, err := c.battlesClient.ChallengePlayerToBattle(
+		c.authClient.AuthToken,
 		pokemonTkns,
 		c.trainersClient.TrainerStatsToken,
 		c.trainersClient.ItemsToken,

@@ -44,7 +44,10 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 	for {
 		select {
-
+		case <-channels.RejectedChannel:
+			log.Info("battle was rejected")
+			close(channels.FinishChannel)
+			return nil
 		case <-channels.FinishChannel:
 			return nil
 
