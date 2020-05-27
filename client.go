@@ -334,12 +334,12 @@ func (c *NovaPokemonClient) MakeRandomMicrotransaction() error {
 	}
 
 	randomItem := items[rand.Intn(len(items))]
-	log.Info("making purchase of pack %s for %d money, gaining %d coins", randomItem.Name, randomItem.Price, randomItem.Coins)
+	log.Infof("making purchase of pack %s for %d money, gaining %d coins", randomItem.Name, randomItem.Price, randomItem.Coins)
 	transactionId, statsToken, err := c.microtransacitonsClient.PerformTransaction(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
 	if err != nil {
 		return wrapMakeRandomMicrotransaction(err)
 	}
-	log.Info("Made transaction with id: %s", transactionId.Hex())
+	log.Infof("Made transaction with id: %s", transactionId.Hex())
 	err = c.trainersClient.SetTrainerStatsToken(statsToken)
 	if err != nil {
 		return wrapMakeRandomMicrotransaction(err)
