@@ -8,6 +8,7 @@ import (
 const (
 	errorStartTrade               = "error starting trade"
 	errorJoinTrade                = "error joining trade"
+	errorRejectTrade              = "error rejecting trade"
 	errorRegisterAndGetTokens     = "error registering and getting tokens"
 	errorLoginAndGetTokens        = "error logging in and getting tokens"
 	errorBuyRandomItem            = "error buying random item"
@@ -42,6 +43,10 @@ func wrapStartTradeError(err error) error {
 
 func wrapJoinTradeError(err error) error {
 	return errors.Wrap(err, errorJoinTrade)
+}
+
+func wrapRejectTradeError(err error) error {
+	return errors.Wrap(err, errorRejectTrade)
 }
 
 func wrapRegisterAndGetTokensError(err error) error {

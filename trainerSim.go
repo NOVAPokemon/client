@@ -26,6 +26,9 @@ const (
 	RaidCmd                     Operation = "r"
 	NoOp                        Operation = "h"
 	ExitCmd                     Operation = "e"
+
+	AcceptCmd Operation = "a"
+	RejectCmd Operation = "r"
 )
 
 type TrainerSim struct {
