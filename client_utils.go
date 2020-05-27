@@ -35,7 +35,11 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 	var adversaryPokemon *pokemons.Pokemon
 
 	go func() {
-		<-expireTimer.C
+		select {
+		case <-channels.RejectedChannel:
+			return
+		case <-expireTimer.C:
+		}
 		if !started {
 			log.Warn("Leaving lobby because other player hasn't joined")
 			ws.CloseConnection(conn)
