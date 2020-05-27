@@ -415,7 +415,7 @@ func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 		return wrapChallengePlayerError(err)
 	}
 
-	conn, channels, err := c.battlesClient.ChallengePlayerToBattle(
+	conn, channels, requestTimestamp, err := c.battlesClient.ChallengePlayerToBattle(
 		c.authClient.AuthToken,
 		pokemonTkns,
 		c.trainersClient.TrainerStatsToken,
@@ -426,7 +426,7 @@ func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 		return wrapChallengePlayerError(err)
 	}
 
-	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse, requestTimestamp)
 	if err != nil {
 		return wrapChallengePlayerError(err)
 	}
@@ -505,7 +505,7 @@ func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Noti
 			return wrapHandleBattleNotificationError(err)
 		}
 
-		err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+		err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse, 0)
 	}
 
 	return wrapHandleBattleNotificationError(err)
@@ -526,7 +526,7 @@ func (c *NovaPokemonClient) StartAutoBattleQueue() error {
 		return wrapStartAutoBattleQueueError(err)
 	}
 
-	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+	err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse, 0)
 	if err != nil {
 		return wrapStartAutoBattleQueueError(err)
 	}
@@ -567,7 +567,7 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 			return wrapStartLookForRaid(err)
 		}
 
-		err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse)
+		err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse,0)
 		if err != nil {
 			return wrapStartLookForRaid(err)
 		}

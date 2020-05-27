@@ -15,12 +15,15 @@ import (
 )
 
 var (
+	totalTimeTookStart  int64 = 0
+	numberMeasuresStart       = 0
+
 	totalTimeTookBattleMsgs  int64 = 0
 	numberMeasuresBattleMsgs       = 0
 )
 
 func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels,
-	chosenPokemons map[string]*pokemons.Pokemon) error {
+	chosenPokemons map[string]*pokemons.Pokemon, requestTimestamp int64) error {
 	defer ws.CloseConnection(conn)
 
 	rand.Seed(time.Now().Unix())
@@ -48,13 +51,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 	for {
 		select {
-		case <-channels.RejectedChannel:
-			log.Info("battle was rejected")
-			close(channels.FinishChannel)
-			return nil
 		case <-channels.FinishChannel:
 			return nil
-
 		case <-cdTimer.C:
 			// if the battle hasn't started but the updatedPokemon is already picked, do nothing
 			if started {
@@ -86,6 +84,34 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			case ws.Start:
 				started = true
 
+				if requestTimestamp == 0 {
+					break
+				}
+
+				responseTime := ws.MakeTimestamp()
+				timeTook := responseTime - requestTimestamp
+				log.Infof("time took to initiate interaction: %d ms", timeTook)
+
+				numberMeasuresStart++
+				totalTimeTookStart += timeTook
+
+				log.Infof("average time starting: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
+			case ws.Reject:
+				log.Info("battle was rejected")
+				close(channels.RejectedChannel)
+				close(channels.FinishChannel)
+
+				if requestTimestamp == 0 {
+					break
+				}
+
+				responseTime := ws.MakeTimestamp()
+				timeTook := responseTime - requestTimestamp
+				log.Infof("time took to initiate interaction: %d ms", timeTook)
+
+				numberMeasuresStart++
+				totalTimeTookStart += timeTook
+				log.Infof("average time starting: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
 			case ws.Error:
 				desMsg, err := ws.DeserializeMsg(msgParsed)
 				if err != nil {
