@@ -22,6 +22,7 @@ const (
 	errorAutoManageBattle         = "error auto managing battle"
 	errorNextBattleMove           = "error in next battle move"
 	errorChangeActivePokemon      = "error changing active pokemon"
+	errorMakeMicrotransaction      = "error making microtransaction"
 
 	errorBattleErrorMsgFormat = "got battle error msg %s"
 )
@@ -53,6 +54,10 @@ func wrapLoginAndGeTokensError(err error) error {
 
 func wrapBuyRandomItemError(err error) error {
 	return errors.Wrap(err, errorBuyRandomItem)
+}
+
+func wrapMakeRandomMicrotransaction(err error) error {
+	return errors.Wrap(err, errorMakeMicrotransaction)
 }
 
 func wrapCatchWildPokemonError(err error) error {

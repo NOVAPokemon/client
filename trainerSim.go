@@ -12,19 +12,20 @@ type Operation string
 
 // *** WARNING ***
 // ORDER MATTERS FOR MATRIX
-var ops = []Operation{ChallengeCmd, QueueCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd}
+var ops = []Operation{ChallengeCmd, QueueCmd, MakeMicrotransactionCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd}
 
 const (
-	ChallengeCmd            Operation = "b"
+	ChallengeCmd                Operation = "b"
 	ChallengeSpecificTrainerCmd Operation = "bs"
-	QueueCmd                Operation = "q"
-	TradeSpecificTrainerCmd Operation = "ts"
-	TradeCmd                Operation = "t"
-	StoreCmd                Operation = "s"
-	CatchCmd                Operation = "c"
-	RaidCmd                 Operation = "r"
-	NoOp                    Operation = "h"
-	ExitCmd                 Operation = "e"
+	QueueCmd                    Operation = "q"
+	TradeSpecificTrainerCmd     Operation = "ts"
+	TradeCmd                    Operation = "t"
+	MakeMicrotransactionCmd     Operation = "m"
+	StoreCmd                    Operation = "s"
+	CatchCmd                    Operation = "c"
+	RaidCmd                     Operation = "r"
+	NoOp                        Operation = "h"
+	ExitCmd                     Operation = "e"
 )
 
 type TrainerSim struct {

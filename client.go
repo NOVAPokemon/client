@@ -30,14 +30,15 @@ type NovaPokemonClient struct {
 
 	config *utils.ClientConfig
 
-	authClient          *clients.AuthClient
-	battlesClient       *clients.BattleLobbyClient
-	tradesClient        *clients.TradeLobbyClient
-	notificationsClient *clients.NotificationClient
-	trainersClient      *clients.TrainersClient
-	storeClient         *clients.StoreClient
-	locationClient      *clients.LocationClient
-	gymsClient          *clients.GymClient
+	authClient              *clients.AuthClient
+	battlesClient           *clients.BattleLobbyClient
+	tradesClient            *clients.TradeLobbyClient
+	notificationsClient     *clients.NotificationClient
+	trainersClient          *clients.TrainersClient
+	storeClient             *clients.StoreClient
+	locationClient          *clients.LocationClient
+	gymsClient              *clients.GymClient
+	microtransacitonsClient *clients.MicrotransactionsClient
 
 	notificationsChannel chan *utils.Notification
 	operationsChannel    chan Operation
@@ -70,6 +71,7 @@ func (c *NovaPokemonClient) init() {
 	c.storeClient = clients.NewStoreClient()
 	c.locationClient = clients.NewLocationClient(c.config.LocationConfig)
 	c.gymsClient = clients.NewGymClient(httpCLient)
+	c.microtransacitonsClient = clients.NewMicrotransactionsClient()
 }
 
 func (c *NovaPokemonClient) StartTradeWithPlayer(playerId string) error {
@@ -185,10 +187,11 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 				"%s - auto trade\n"+
 				"%s - trade with specific trainer\n"+
 				"%s - buy random item\n"+
+				"%s - make random microtransaction\n"+
 				"%s - try to catch pokemon\n"+
 				"%s - raid closest gym\n"+
 				"%s - exit\n",
-			QueueCmd, ChallengeCmd, ChallengeSpecificTrainerCmd, TradeCmd, TradeSpecificTrainerCmd, StoreCmd, CatchCmd, RaidCmd, ExitCmd)
+			QueueCmd, ChallengeCmd, ChallengeSpecificTrainerCmd, TradeCmd, TradeSpecificTrainerCmd, StoreCmd, MakeMicrotransactionCmd, CatchCmd, RaidCmd, ExitCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
@@ -252,6 +255,8 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 		return false, c.BuyRandomItem()
 	case CatchCmd:
 		return false, c.CatchWildPokemon()
+	case MakeMicrotransactionCmd:
+		return false, c.MakeRandomMicrotransaction()
 	case RaidCmd:
 		return false, c.StartLookForNearbyRaid()
 	case NoOp:
@@ -276,6 +281,27 @@ func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification
 			log.Error(err)
 		}
 	}
+}
+
+func (c *NovaPokemonClient) MakeRandomMicrotransaction() error {
+	items, err := c.microtransacitonsClient.GetOffers()
+	if err != nil {
+		return wrapMakeRandomMicrotransaction(err)
+	}
+
+	randomItem := items[rand.Intn(len(items))]
+	log.Info("making purchase of pack %s for %d money, gaining %d coins", randomItem.Name, randomItem.Price, randomItem.Coins)
+	transactionId, statsToken, err := c.microtransacitonsClient.PerformTransaction(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
+	if err != nil {
+		return wrapMakeRandomMicrotransaction(err)
+	}
+	log.Info("Made transaction with id: %s", transactionId.Hex())
+	err = c.trainersClient.SetTrainerStatsToken(statsToken)
+	if err != nil {
+		return wrapMakeRandomMicrotransaction(err)
+	}
+
+	return nil
 }
 
 func (c *NovaPokemonClient) BuyRandomItem() error {
@@ -304,7 +330,7 @@ func (c *NovaPokemonClient) BuyRandomItem() error {
 }
 
 func (c *NovaPokemonClient) CatchWildPokemon() error {
-	return c.locationClient.CatchWildPokemon(c.trainersClient.ItemsToken)
+	return wrapCatchWildPokemonError(c.locationClient.CatchWildPokemon(c.trainersClient.ItemsToken))
 }
 
 func (c *NovaPokemonClient) Finish() {
