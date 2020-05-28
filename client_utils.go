@@ -95,7 +95,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				numberMeasuresStart++
 				totalTimeTookStart += timeTook
 
-				log.Infof("average time starting: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
+				log.Infof("average time starting battles: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
 			case ws.Reject:
 				log.Info("battle was rejected")
 				close(channels.RejectedChannel)
@@ -111,7 +111,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 				numberMeasuresStart++
 				totalTimeTookStart += timeTook
-				log.Infof("average time starting: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
+				log.Infof("average time starting battles: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
 			case ws.Error:
 				desMsg, err := ws.DeserializeMsg(msgParsed)
 				if err != nil {
