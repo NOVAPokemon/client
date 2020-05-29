@@ -26,6 +26,8 @@ int main(int argc, char const* argv[])
     int NUM_CLIENTS = LONG_NUM_CLIENTS;
     pthread_t pthread_ids[NUM_CLIENTS];
 
+    printf("Starting %d clients (threads)...", NUM_CLIENTS);
+
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		pthread_t thread_id;
 		pthread_ids[i] = thread_id;
