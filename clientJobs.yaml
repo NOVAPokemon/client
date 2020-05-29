@@ -16,7 +16,7 @@ spec:
             - configMapRef:
                 name: "services-api"
           env:
-            - name: "NUM_CLIENTS"
+            - name: NUM_CLIENTS
               value: 10
           securityContext:
             capabilities:
