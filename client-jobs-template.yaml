@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: novapokemon-tester-2-7
+  name: VAR_IMAGE_NAME
 spec:
   completions: 1
   parallelism: 1
@@ -17,7 +17,7 @@ spec:
                 name: "services-api"
           env:
             - name: NUM_CLIENTS
-              value: 10
+              value: "VAR_CLIENT_NUMS"
           securityContext:
             capabilities:
               add:
