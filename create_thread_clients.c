@@ -12,13 +12,13 @@ void *run_client(void *vargp) {
 
 int main(int argc, char const* argv[])
 {
-	if (argc != 2) {
-		printf("wrong number of arguments: %d", argc);
+	if (argc != 1) {
+		printf("wrong number of arguments: %d\nexpected 1, since number of clients is an environment variable", argc);
 		return 1;
 	}
 
 	char* p;
-	long LONG_NUM_CLIENTS = strtol(argv[1], &p, 10);
+	long LONG_NUM_CLIENTS = strtol(getenv("NUM_CLIENTS"), &p, 10);
 	if (*p != '\0' || errno != 0) {
         return 1;
     }
