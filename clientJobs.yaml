@@ -1,14 +1,14 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: novapokemon-tester
+  name: novapokemon-tester-2-7
 spec:
   completions: 1
   parallelism: 1
   template:
     spec:
       containers:
-        - name: client
+        - name: clients
           image: "novapokemon/client:latest"
           imagePullPolicy: Always
           command: ["sh", "-c", "./$multiclient"]
@@ -16,8 +16,8 @@ spec:
             - configMapRef:
                 name: "services-api"
           env:
-            - name: "NUM_CLIENTS"
-              value: 10
+            - name: NUM_CLIENTS
+              value: "7"
           securityContext:
             capabilities:
               add:
@@ -25,4 +25,4 @@ spec:
       restartPolicy: Never
       nodeSelector:
         clientsnode: "true"
-  backoffLimit: 4
+  backoffLimit: 0
