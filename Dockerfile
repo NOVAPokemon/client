@@ -9,4 +9,4 @@ COPY $executable .
 COPY $multiclient .
 COPY configs.json .
 
-CMD ["sh", "-c", "./$multiclient 1"]
+CMD ["sh", "-c", "./$multiclient"]
