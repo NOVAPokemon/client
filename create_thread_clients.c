@@ -2,15 +2,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include<unistd.h>
+#include <unistd.h>
 
 void *run_client(void *vargp) {
-	char *args[]={"./$executable", "-a", NULL};
+    char *args[]={"./executable", "-a", NULL};
     int retExec = execvp(args[0], args);
 
 	if (retExec < 0) {
-	    printf("ERROR: exec failed with status %d.", retExec);
-	    exit(retExec);
+	    printf("ERROR: exec failed with status %d and errno %d.\n", retExec, errno);
+	    exit(errno);
 	}
 
 	return NULL;
