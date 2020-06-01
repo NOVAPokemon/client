@@ -9,8 +9,8 @@ void *run_client(void *vargp) {
     int retExec = execvp(args[0], args);
 
 	if (retExec < 0) {
-	    printf("ERROR: exec failed with status %d.", retExec);
-	    exit(retExec);
+	    printf("ERROR: exec failed with status %d and errno %d.\n", retExec, errno);
+	    exit(errno);
 	}
 
 	return NULL;
