@@ -44,6 +44,7 @@ int main(int argc, char const* argv[])
 
 	int client_num;
 	for(int i = 0; i < NUM_CLIENTS; i++) {
+		printf("Creating client %d\n", i);
    		client_num = i;
 		pthread_t thread_id;
 
