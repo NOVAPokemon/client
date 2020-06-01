@@ -5,7 +5,7 @@
 #include<unistd.h>
 
 void *run_client(void *vargp) {
-    char *args[]={"./$executable", "-a", NULL};
+    char *args[]={"./executable", "-a", NULL};
     int retExec = execvp(args[0], args);
 
 	if (retExec < 0) {
