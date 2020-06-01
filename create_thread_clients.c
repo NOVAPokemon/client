@@ -38,23 +38,20 @@ int main(int argc, char const* argv[])
     }
 
     int NUM_CLIENTS = LONG_NUM_CLIENTS;
+    int client_nums[NUM_CLIENTS];
     pthread_t pthread_ids[NUM_CLIENTS];
 
     printf("Starting %d clients (threads)...", NUM_CLIENTS);
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		printf("Creating client %d\n", i);
-   		int client_num = i;
-		pthread_t thread_id;
+   		client_nums[i] = i;
 
-		pthread_create(&thread_id, NULL, run_client, (void *)&client_num);
-		pthread_ids[i] = thread_id;
+		pthread_create(&pthread_ids[i], NULL, run_client, (void *)&client_nums[i]);
 		printf("Created client %d\n", i);
 		
 		sleep(1);
 	}
-
-	fflush(stdout);
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		pthread_join(pthread_ids[i], NULL);
