@@ -57,9 +57,14 @@ func main() {
 func setLogToFile(username string) {
 	filename := fmt.Sprintf("%s/%s.log", logsPath, username)
 
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, os.FileMode(0666))
+	file, err := os.Create(filename)
 	if err != nil {
-		panic(fmt.Sprintf("could not set logger to %s", filename))
+		panic(fmt.Sprintf("could not set logger to %s on creation", filename))
+	}
+
+	err = file.Chmod(0666)
+	if err != nil {
+		panic(fmt.Sprintf("could not set logger to %s due to chmod changes", filename))
 	}
 
 	log.SetOutput(file)
