@@ -22,6 +22,7 @@ import (
 const (
 	configFilename           = "configs.json"
 	maxNotificationsBuffered = 10
+	authRefreshTime          = 20
 
 	AUTO = "AUTO"
 	CLI  = "CLI"
@@ -160,6 +161,8 @@ func (c *NovaPokemonClient) MainLoopAuto() {
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
 
+	authTimer := time.NewTimer(authRefreshTime * time.Minute)
+
 	const waitTime = 2 * time.Second
 	waitNotificationsTimer := time.NewTimer(waitTime)
 	autoClient := NewTrainerSim()
@@ -175,6 +178,13 @@ func (c *NovaPokemonClient) MainLoopAuto() {
 			} else if exit {
 				return
 			}
+		case <-authTimer.C:
+			log.Info("Refresh authentication tokens timer triggered. Refreshing...")
+			err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+			if err != nil {
+				log.Error(err)
+			}
+			authTimer.Reset(authRefreshTime * time.Minute)
 		}
 		c.validateStatsTokens()
 		c.validatePokemonTokens()
@@ -188,6 +198,8 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
 	go c.ReadOperation()
+
+	authTimer := time.NewTimer(authRefreshTime * time.Minute)
 
 	for {
 		fmt.Printf(
@@ -214,6 +226,13 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 			} else if exit {
 				return
 			}
+		case <-authTimer.C:
+			log.Info("Refresh authentication tokens timer triggered. Refreshing...")
+			err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+			if err != nil {
+				log.Error(err)
+			}
+			authTimer.Reset(authRefreshTime * time.Minute)
 		}
 		c.validateStatsTokens()
 		c.validatePokemonTokens()
