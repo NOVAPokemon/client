@@ -38,6 +38,7 @@ int main(int argc, char const* argv[])
 		pthread_t thread_id;
 		pthread_create(&thread_id, NULL, run_client, NULL);
 		pthread_ids[i] = thread_id;
+		sleep(1);
 	}
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
