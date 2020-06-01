@@ -5,23 +5,21 @@
 #include <unistd.h>
 #include <string.h>
 
-void *run_client(void *func_args) {
-	int *client_num = (int *)func_args;
+void run_client(int client_num) {
+	char *client_num_string = malloc(8*sizeof(char) + 10);
+	bzero(client_num_string, (8*1+10));
 
-	char *client_num_string = malloc(8*sizeof(char) + sizeof(int));
-	sprintf(client_num_string, "client_%d", *client_num);
-    char *args[]={"./executable", "-a", ">", client_num_string, NULL};
+	sprintf(client_num_string, "client_%d", client_num);
+	char *args[]={"./executable", "-a", ">", client_num_string, NULL};
 
-    printf("Executing client...");
-
-    int retExec = execvp(args[0], args);
+	printf("Executing client...");
+	int retExec = execvp(args[0], args);
 
 	if (retExec < 0) {
-	    printf("ERROR: exec failed with status %d and errno %d.\n", retExec, errno);
-	    exit(errno);
+		printf("ERROR: exec failed with status %d and errno %d.\n", retExec, errno);
+		exit(errno);
 	}
 
-	return NULL;
 }
 
 int main(int argc, char const* argv[])
@@ -34,28 +32,27 @@ int main(int argc, char const* argv[])
 	char* p;
 	long LONG_NUM_CLIENTS = strtol(getenv("NUM_CLIENTS"), &p, 10);
 	if (*p != '\0' || errno != 0) {
-        return 1;
-    }
+		return 1;
+	}
 
-    int NUM_CLIENTS = LONG_NUM_CLIENTS;
-    int client_nums[NUM_CLIENTS];
-    pthread_t pthread_ids[NUM_CLIENTS];
+	int NUM_CLIENTS = LONG_NUM_CLIENTS;
 
-    printf("Starting %d clients (threads)...", NUM_CLIENTS);
+	printf("Starting %d clients (threads)...", NUM_CLIENTS);
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		printf("Creating client %d\n", i);
-   		client_nums[i] = i;
 
-		pthread_create(&pthread_ids[i], NULL, run_client, (void *)&client_nums[i]);
+		if (fork() == 0) {
+			run_client(i);
+		}
+
 		printf("Created client %d\n", i);
 		
 		sleep(1);
-		fflush(stdout);
 	}
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
-		pthread_join(pthread_ids[i], NULL);
+		wait(NULL);
 	}
 
 	return 0;
