@@ -3,9 +3,17 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <string.h>
 
-void *run_client(void *vargp) {
-    char *args[]={"./executable", "-a", NULL};
+void *run_client(void *func_args) {
+	int *client_num = (int *)func_args;
+
+	char *client_num_string = malloc(8*sizeof(char) + sizeof(int));
+	sprintf(client_num_string, "client_%d", *client_num);
+    char *args[]={"./executable", "-a", ">", client_num_string, NULL};
+
+    printf("Executing client...");
+
     int retExec = execvp(args[0], args);
 
 	if (retExec < 0) {
@@ -19,7 +27,7 @@ void *run_client(void *vargp) {
 int main(int argc, char const* argv[])
 {
 	if (argc != 1) {
-		printf("wrong number of arguments: %d\nexpected 1, since number of clients is an environment variable", argc);
+		printf("wrong number of arguments: %d\nexpected 1, since number of clients is an environment variable\n", argc);
 		return 1;
 	}
 
@@ -34,10 +42,15 @@ int main(int argc, char const* argv[])
 
     printf("Starting %d clients (threads)...", NUM_CLIENTS);
 
+	int client_num;
 	for(int i = 0; i < NUM_CLIENTS; i++) {
+   		client_num = i;
 		pthread_t thread_id;
-		pthread_create(&thread_id, NULL, run_client, NULL);
+
+		pthread_create(&thread_id, NULL, run_client, (void *)&client_num);
 		pthread_ids[i] = thread_id;
+		printf("Created client %d\n", i);
+		
 		sleep(1);
 	}
 
