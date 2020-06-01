@@ -42,17 +42,16 @@ int main(int argc, char const* argv[])
 
     printf("Starting %d clients (threads)...", NUM_CLIENTS);
 
-	int client_num;
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		printf("Creating client %d\n", i);
-   		client_num = i;
+   		int client_num = i;
 		pthread_t thread_id;
 
 		pthread_create(&thread_id, NULL, run_client, (void *)&client_num);
 		pthread_ids[i] = thread_id;
 		printf("Created client %d\n", i);
 		
-		sleep(1);
+		//sleep(1);
 	}
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
