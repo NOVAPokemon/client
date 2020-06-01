@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/wait.h>
 
 void run_client(int client_num) {
 	char *client_num_string = malloc(8*sizeof(char) + 10);
