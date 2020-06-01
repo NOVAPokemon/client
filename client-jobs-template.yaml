@@ -22,6 +22,14 @@ spec:
             capabilities:
               add:
                 - NET_ADMIN
+          volumeMounts:
+          - mountPath: /logs
+            name: logs-volume
+      volumes:
+      - name: logs-volume
+        hostPath:
+          path: VAR_HOST_PATH
+          type: Directory
       restartPolicy: Never
       nodeSelector:
         clientsnode: "true"
