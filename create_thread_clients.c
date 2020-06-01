@@ -51,6 +51,7 @@ int main(int argc, char const* argv[])
 		printf("Created client %d\n", i);
 		
 		sleep(1);
+		fflush(stdout);
 	}
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
