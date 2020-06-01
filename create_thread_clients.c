@@ -6,11 +6,11 @@
 
 void *run_client(void *vargp) {
 	char *args[]={"./$executable", "-a", NULL};
-    int retExec = execvp(args[0], args)
+    int retExec = execvp(args[0], args);
 
 	if (retExec < 0) {
-	    printf("ERROR: exec failed with status %d.",)
-	    exit(retExec)
+	    printf("ERROR: exec failed with status %d.", retExec);
+	    exit(retExec);
 	}
 
 	return NULL;
@@ -36,8 +36,8 @@ int main(int argc, char const* argv[])
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		pthread_t thread_id;
-		pthread_ids[i] = thread_id;
 		pthread_create(&thread_id, NULL, run_client, NULL);
+		pthread_ids[i] = thread_id;
 	}
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
