@@ -51,8 +51,10 @@ int main(int argc, char const* argv[])
 		pthread_ids[i] = thread_id;
 		printf("Created client %d\n", i);
 		
-		//sleep(1);
+		sleep(1);
 	}
+
+	fflush(stdout);
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		pthread_join(pthread_ids[i], NULL);
