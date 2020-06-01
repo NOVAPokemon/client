@@ -5,20 +5,13 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"math/rand"
+	"os"
 	"time"
 )
 
-//func main() {
-//
-//	client := NovaPokemonClient{
-//		Username: requestUsername(),
-//		Password: requestPassword(),
-//	}
-//
-//	client.init()
-//	_ = LoginAndStartAutoBattleQueue(&client)
-//
-//}
+const (
+	logsPath = "/logs"
+)
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -26,14 +19,19 @@ func main() {
 	flag.Usage = func() {
 		fmt.Printf("Usage\n")
 		fmt.Printf("./client -a \n")
-		//flag.PrintDefaults()  // prints default usage
+		// flag.PrintDefaults()
 	}
+
 	var auto bool
 	flag.BoolVar(&auto, "a", false, "start automatic client")
 	flag.Parse()
 
+	username := RandomString(20)
+
+	setLogToFile(username)
+
 	client := NovaPokemonClient{
-		Username: RandomString(20),
+		Username: username,
 		Password: RandomString(20),
 	}
 	client.init()
@@ -54,4 +52,15 @@ func main() {
 	}
 
 	client.Finish()
+}
+
+func setLogToFile(username string) {
+	filename := fmt.Sprintf("%s/%s.log", logsPath, username)
+
+	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(fmt.Sprintf("could not set logger to %s", filename))
+	}
+
+	log.SetOutput(file)
 }
