@@ -23,7 +23,7 @@ const (
 	errorAutoManageBattle         = "error auto managing battle"
 	errorNextBattleMove           = "error in next battle move"
 	errorChangeActivePokemon      = "error changing active pokemon"
-	errorMakeMicrotransaction      = "error making microtransaction"
+	errorMakeMicrotransaction     = "error making microtransaction"
 
 	errorBattleErrorMsgFormat = "got battle error msg %s"
 )
