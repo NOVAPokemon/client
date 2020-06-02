@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"os"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 const (

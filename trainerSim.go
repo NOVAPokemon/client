@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"math/rand"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Operation string

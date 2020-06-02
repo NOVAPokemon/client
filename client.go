@@ -5,18 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/NOVAPokemon/utils"
-	"github.com/NOVAPokemon/utils/clients"
-	"github.com/NOVAPokemon/utils/notifications"
-	"github.com/NOVAPokemon/utils/pokemons"
-	log "github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/clients"
+	"github.com/NOVAPokemon/utils/notifications"
+	"github.com/NOVAPokemon/utils/pokemons"
+	log "github.com/sirupsen/logrus"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 const (

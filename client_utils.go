@@ -1,6 +1,10 @@
 package main
 
 import (
+	"math"
+	"math/rand"
+	"time"
+
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/items"
 	"github.com/NOVAPokemon/utils/pokemons"
@@ -9,9 +13,6 @@ import (
 	"github.com/NOVAPokemon/utils/websockets/battles"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
-	"math"
-	"math/rand"
-	"time"
 )
 
 var (
