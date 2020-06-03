@@ -19,7 +19,7 @@ func main() {
 
 	flag.Usage = func() {
 		fmt.Printf("Usage\n")
-		fmt.Printf("./client -a \n")
+		fmt.Printf("./client -a -l \n")
 		// flag.PrintDefaults()
 	}
 
@@ -27,9 +27,15 @@ func main() {
 	flag.BoolVar(&auto, "a", false, "start automatic client")
 	flag.Parse()
 
+	var logToStdout bool
+	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
+	flag.Parse()
+
 	username := RandomString(20)
 
-	setLogToFile(username)
+	if !logToStdout {
+		setLogToFile(username)
+	}
 
 	client := NovaPokemonClient{
 		Username: username,
