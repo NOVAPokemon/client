@@ -210,9 +210,13 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 							log.Error(err)
 							continue
 						}
+
+						trainersClient.ClaimsLock.Lock()
+
 						trainersClient.PokemonClaims[decodedToken.Pokemon.Id.Hex()] = *decodedToken
 						trainersClient.PokemonTokens[decodedToken.Pokemon.Id.Hex()] = tkn
 
+						trainersClient.ClaimsLock.Unlock()
 					}
 				case tokens.ItemsTokenHeaderName:
 					decodedToken, err := tokens.ExtractItemsToken(setTokenMsg.TokensString[0])

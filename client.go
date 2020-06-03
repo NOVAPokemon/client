@@ -608,6 +608,8 @@ func (c *NovaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.P
 	var pokemonTkns = make([]string, nr)
 	var pokemonMap = make(map[string]*pokemons.Pokemon, nr)
 
+	c.trainersClient.ClaimsLock.RLock()
+
 	i := 0
 	for _, tkn := range c.trainersClient.PokemonClaims {
 
@@ -624,6 +626,8 @@ func (c *NovaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.P
 		pokemonMap[pokemonId] = &aux
 		i++
 	}
+
+	c.trainersClient.ClaimsLock.RUnlock()
 
 	if i < nr {
 		return nil, nil, errorNotEnoughPokemons
@@ -653,10 +657,14 @@ func (c *NovaPokemonClient) validateStatsTokens() {
 }
 
 func (c *NovaPokemonClient) validatePokemonTokens() {
+	c.trainersClient.ClaimsLock.RLock()
+
 	hashes := make(map[string][]byte, len(c.trainersClient.PokemonClaims))
 	for _, tkn := range c.trainersClient.PokemonClaims {
 		hashes[tkn.Pokemon.Id.Hex()] = tkn.PokemonHash
 	}
+
+	c.trainersClient.ClaimsLock.RUnlock()
 
 	if valid, err := c.trainersClient.VerifyPokemons(c.Username, hashes, c.authClient.AuthToken); err != nil {
 		log.Fatal(err)

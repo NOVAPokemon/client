@@ -7,11 +7,14 @@
 #include <sys/wait.h>
 
 void run_client(int client_num) {
-	char *client_num_string = malloc(8*sizeof(char) + 10);
-	bzero(client_num_string, (8*1+10));
+	char *client_filename = malloc(8*sizeof(char) + 10);
+	bzero(client_filename, (8*1+10));
 
-	sprintf(client_num_string, "client_%d", client_num);
-	char *args[]={"./executable", "-a", ">", client_num_string, NULL};
+	sprintf(client_filename, "client_%d", client_num);
+
+	char *client_num_string = malloc(10);
+	sprintf(client_num_string, "%d", client_num);
+	char *args[]={"./executable", "-a", "-n", client_num_string, NULL};
 
 	printf("Executing client...\n");
 	fflush(stdout);
