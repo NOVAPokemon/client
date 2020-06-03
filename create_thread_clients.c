@@ -34,7 +34,8 @@ void *wait_for_client(void *args) {
 	int client_num = args_int[0];
 	pid_t fork_pid = args_int[1];
 
-	wait(&fork_pid);
+	int status;
+	waitpid(fork_pid, &status, 0);
 
 	printf("Client %d crashed! Check logs.\n", client_num);
 	fflush(stdout);
