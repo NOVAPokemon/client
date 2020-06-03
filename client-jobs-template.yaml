@@ -33,4 +33,4 @@ spec:
       restartPolicy: Never
       nodeSelector:
         clientsnode: "true"
-  backoffLimit: 0
+  backoffLimit: 6
