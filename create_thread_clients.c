@@ -13,7 +13,7 @@ void run_client(int client_num) {
 	sprintf(client_num_string, "client_%d", client_num);
 	char *args[]={"./executable", "-a", ">", client_num_string, NULL};
 
-	printf("Executing client...");
+	printf("Executing client...\n");
 	fflush(stdout);
 	int retExec = execvp(args[0], args);
 
@@ -33,7 +33,7 @@ void *wait_for_client(void *args) {
 
 	wait(&fork_pid);
 
-	printf("Client %d crashed! Check logs.", client_num);
+	printf("Client %d crashed! Check logs.\n", client_num);
 	fflush(stdout);
 
 	exit(1);
@@ -59,7 +59,7 @@ int main(int argc, char const* argv[])
 	pthread_t waiting_threads_ids[NUM_CLIENTS];
 	int thread_args[NUM_CLIENTS][2];
 
-	printf("Starting %d clients (threads)...", NUM_CLIENTS);
+	printf("Starting %d clients (threads)...\n", NUM_CLIENTS);
 	fflush(stdout);
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
@@ -84,11 +84,13 @@ int main(int argc, char const* argv[])
 		sleep(1);
 	}
 
+	printf("Finished creating clients.\n");
+
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		pthread_join(waiting_threads_ids[i], NULL);
 	}
 
-	printf("Thread crashed... Check logs.");
+	printf("Thread crashed... Check logs.\n");
 	fflush(stdout);
 
 	return 0;
