@@ -16,7 +16,7 @@ spec:
         - name: clients
           image: "novapokemon/client:latest"
           imagePullPolicy: Always
-          command: ["sh", "-c", "./$multiclient"]
+          command: ["sh", "-c", "./multiclient"]
           envFrom:
             - configMapRef:
                 name: "services-api"
