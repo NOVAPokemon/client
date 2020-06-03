@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/NOVAPokemon/utils/clients/metrics"
 	"math"
 	"math/rand"
 	"time"
@@ -24,10 +25,10 @@ var (
 )
 
 const (
-	logTimeTookStartBattle = "time start battle: %d ms"
+	logTimeTookStartBattle    = "time start battle: %d ms"
 	logAverageTimeStartBattle = "average start battle: %f ms"
 
-	logTimeTookBattleMsg = "time battle: %d ms"
+	logTimeTookBattleMsg    = "time battle: %d ms"
 	logAverageTimeBattleMsg = "average battle: %f ms"
 )
 
@@ -147,6 +148,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				if ok {
 					totalTimeTookBattleMsgs += timeTook
 					numberMeasuresBattleMsgs++
+					metrics.EmitBattleMessageDuration(float64(timeTook))
 					log.Infof(logTimeTookBattleMsg, timeTook)
 					log.Infof(logAverageTimeBattleMsg,
 						float64(totalTimeTookBattleMsgs)/float64(numberMeasuresBattleMsgs))

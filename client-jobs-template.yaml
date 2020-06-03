@@ -6,6 +6,11 @@ spec:
   completions: 1
   parallelism: 1
   template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: {{$.Values.global.client.metricsPort}}
     spec:
       containers:
         - name: clients
@@ -23,13 +28,13 @@ spec:
               add:
                 - NET_ADMIN
           volumeMounts:
-          - mountPath: /logs
-            name: logs-volume
+            - mountPath: /logs
+              name: logs-volume
       volumes:
-      - name: logs-volume
-        hostPath:
-          path: VAR_HOST_PATH
-          type: Directory
+        - name: logs-volume
+          hostPath:
+            path: VAR_HOST_PATH
+            type: Directory
       restartPolicy: Never
       nodeSelector:
         clientsnode: "true"
