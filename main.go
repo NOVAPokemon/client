@@ -25,16 +25,23 @@ func main() {
 
 	var auto bool
 	flag.BoolVar(&auto, "a", false, "start automatic client")
-	flag.Parse()
 
 	var logToStdout bool
 	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
+
+	var clientNum int
+	flag.IntVar(&clientNum,"n", -1, "client thread number")
+
 	flag.Parse()
 
 	username := RandomString(20)
 
 	if !logToStdout {
 		setLogToFile(username)
+	}
+
+	if clientNum != -1 {
+		log.Infof("Thread number: %d", clientNum)
 	}
 
 	client := NovaPokemonClient{

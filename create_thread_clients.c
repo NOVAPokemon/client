@@ -23,6 +23,21 @@ void run_client(int client_num) {
 
 }
 
+void *wait_for_client(void *args) {
+	int *args_int = (int *)args;
+
+	int client_num = args_int[0];
+	pid_t fork_pid = args_int[1];
+
+	wait(&fork_pid);
+
+	printf("Client %d crashed! Check logs.", client_num);
+
+	exit(1);
+
+	return NULL;
+}
+
 int main(int argc, char const* argv[])
 {
 	if (argc != 1) {
@@ -37,15 +52,25 @@ int main(int argc, char const* argv[])
 	}
 
 	int NUM_CLIENTS = LONG_NUM_CLIENTS;
+	pthread_t waiting_threads_ids[NUM_CLIENTS];
+	int thread_args[NUM_CLIENTS][2];
 
 	printf("Starting %d clients (threads)...", NUM_CLIENTS);
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		printf("Creating client %d\n", i);
 
-		if (fork() == 0) {
+		pid_t fork_id = fork();
+
+		if (fork_id == 0) {
+			// CHILD
 			run_client(i);
 		}
+
+		thread_args[NUM_CLIENTS][0] = i;
+		thread_args[NUM_CLIENTS][1] = fork_id;		
+
+		pthread_create(&waiting_threads_ids[i], NULL, wait_for_client, thread_args);
 
 		printf("Created client %d\n", i);
 		
@@ -53,8 +78,10 @@ int main(int argc, char const* argv[])
 	}
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
-		wait(NULL);
+		pthread_join(waiting_threads_ids[i], NULL);
 	}
+
+	printf("Thread crashed... Check logs.");
 
 	return 0;
 }
