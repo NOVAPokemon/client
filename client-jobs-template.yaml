@@ -10,7 +10,7 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        prometheus.io/port: {{$.Values.global.client.metricsPort}}
+        prometheus.io/port: "8080"
     spec:
       containers:
         - name: clients
