@@ -23,6 +23,14 @@ var (
 	numberMeasuresBattleMsgs       = 0
 )
 
+const (
+	logTimeTookStartBattle = "time start battle: %d ms"
+	logAverageTimeStartBattle = "average start battle: %f ms"
+
+	logTimeTookBattleMsg = "time battle: %d ms"
+	logAverageTimeBattleMsg = "average battle: %f ms"
+)
+
 func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels,
 	chosenPokemons map[string]*pokemons.Pokemon, requestTimestamp int64) error {
 	defer ws.CloseConnection(conn)
@@ -91,12 +99,12 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 				responseTime := ws.MakeTimestamp()
 				timeTook := responseTime - requestTimestamp
-				log.Infof("time took to initiate interaction: %d ms", timeTook)
+				log.Infof(logTimeTookStartBattle, timeTook)
 
 				numberMeasuresStart++
 				totalTimeTookStart += timeTook
 
-				log.Infof("average time starting battles: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
+				log.Infof(logAverageTimeStartBattle, float64(totalTimeTookStart)/float64(numberMeasuresStart))
 			case ws.Reject:
 				log.Info("battle was rejected")
 				close(channels.RejectedChannel)
@@ -108,11 +116,11 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 				responseTime := ws.MakeTimestamp()
 				timeTook := responseTime - requestTimestamp
-				log.Infof("time took to initiate interaction: %d ms", timeTook)
+				log.Infof(logTimeTookStartBattle, timeTook)
 
 				numberMeasuresStart++
 				totalTimeTookStart += timeTook
-				log.Infof("average time starting battles: %f ms", float64(totalTimeTookStart)/float64(numberMeasuresStart))
+				log.Infof(logAverageTimeStartBattle, float64(totalTimeTookStart)/float64(numberMeasuresStart))
 			case ws.Error:
 				desMsg, err := ws.DeserializeMsg(msgParsed)
 				if err != nil {
@@ -139,8 +147,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				if ok {
 					totalTimeTookBattleMsgs += timeTook
 					numberMeasuresBattleMsgs++
-					log.Infof("time took: %d ms", timeTook)
-					log.Infof("average time for battle msgs: %f ms",
+					log.Infof(logTimeTookBattleMsg, timeTook)
+					log.Infof(logAverageTimeBattleMsg,
 						float64(totalTimeTookBattleMsgs)/float64(numberMeasuresBattleMsgs))
 				}
 
