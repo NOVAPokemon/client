@@ -14,10 +14,12 @@ void run_client(int client_num) {
 	char *args[]={"./executable", "-a", ">", client_num_string, NULL};
 
 	printf("Executing client...");
+	fflush(stdout);
 	int retExec = execvp(args[0], args);
 
 	if (retExec < 0) {
 		printf("ERROR: exec failed with status %d and errno %d.\n", retExec, errno);
+		fflush(stdout);
 		exit(errno);
 	}
 
@@ -32,6 +34,7 @@ void *wait_for_client(void *args) {
 	wait(&fork_pid);
 
 	printf("Client %d crashed! Check logs.", client_num);
+	fflush(stdout);
 
 	exit(1);
 
@@ -42,6 +45,7 @@ int main(int argc, char const* argv[])
 {
 	if (argc != 1) {
 		printf("wrong number of arguments: %d\nexpected 1, since number of clients is an environment variable\n", argc);
+		fflush(stdout);
 		return 1;
 	}
 
@@ -56,9 +60,11 @@ int main(int argc, char const* argv[])
 	int thread_args[NUM_CLIENTS][2];
 
 	printf("Starting %d clients (threads)...", NUM_CLIENTS);
+	fflush(stdout);
 
 	for(int i = 0; i < NUM_CLIENTS; i++) {
 		printf("Creating client %d\n", i);
+		fflush(stdout);
 
 		pid_t fork_id = fork();
 
@@ -73,7 +79,8 @@ int main(int argc, char const* argv[])
 		pthread_create(&waiting_threads_ids[i], NULL, wait_for_client, thread_args);
 
 		printf("Created client %d\n", i);
-		
+		fflush(stdout);
+
 		sleep(1);
 	}
 
@@ -82,6 +89,7 @@ int main(int argc, char const* argv[])
 	}
 
 	printf("Thread crashed... Check logs.");
+	fflush(stdout);
 
 	return 0;
 }
