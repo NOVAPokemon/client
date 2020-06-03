@@ -4,11 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -60,9 +58,6 @@ func main() {
 
 	client.StartListeningToNotifications()
 	client.StartUpdatingLocation()
-
-	http.Handle("/metrics", promhttp.Handler())
-	go log.Error(http.ListenAndServe(":8080", nil))
 
 	if auto {
 		client.MainLoopAuto()
