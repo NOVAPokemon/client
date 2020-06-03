@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 void run_client(int client_num) {
 	char *client_filename = malloc(8*sizeof(char) + 10);
@@ -14,7 +17,15 @@ void run_client(int client_num) {
 
 	char *client_num_string = malloc(10);
 	sprintf(client_num_string, "%d", client_num);
-	char *args[]={"./executable", "-a", "-n", client_num_string, "2>&1", ">", client_filename, NULL};
+	char *args[]={"./executable", "-a", "-n", client_num_string, NULL};
+
+	int out;
+	out = open(client_filename, O_WRONLY | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+
+	dup2(out, fileno(stdout));
+	dup2(fileno(stdout), fileno(stderr));
+	
+	close(out);
 
 	printf("Executing client...\n");
 	fflush(stdout);
