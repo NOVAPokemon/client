@@ -73,10 +73,10 @@ int main(int argc, char const* argv[])
 			run_client(i);
 		}
 
-		thread_args[NUM_CLIENTS][0] = i;
-		thread_args[NUM_CLIENTS][1] = fork_id;		
+		thread_args[i][0] = i;
+		thread_args[i][1] = fork_id;		
 
-		pthread_create(&waiting_threads_ids[i], NULL, wait_for_client, thread_args);
+		pthread_create(&waiting_threads_ids[i], NULL, wait_for_client, thread_args[i]);
 
 		printf("Created client %d\n", i);
 		fflush(stdout);
