@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
 	"math/rand"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -31,7 +32,7 @@ func main() {
 	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
 
 	var clientNum int
-	flag.IntVar(&clientNum,"n", -1, "client thread number")
+	flag.IntVar(&clientNum, "n", -1, "client thread number")
 
 	flag.Parse()
 
