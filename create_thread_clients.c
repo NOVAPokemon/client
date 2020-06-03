@@ -14,7 +14,7 @@ void run_client(int client_num) {
 
 	char *client_num_string = malloc(10);
 	sprintf(client_num_string, "%d", client_num);
-	char *args[]={"./executable", "-a", "-n", client_num_string, NULL};
+	char *args[]={"./executable", "-a", "-n", client_num_string, "2>&1", ">", client_filename, NULL};
 
 	printf("Executing client...\n");
 	fflush(stdout);
