@@ -2,7 +2,7 @@ FROM debian:latest
 
 ENV executable="executable"
 ENV multiclient="multiclient"
-RUN mkdir /service && mkdir /logs
+RUN mkdir /service && mkdir /logs && mkdir /logs/failure_logs
 WORKDIR /service
 
 COPY $executable .
