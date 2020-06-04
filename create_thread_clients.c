@@ -94,8 +94,6 @@ int main(int argc, char const* argv[])
 
 		printf("Created client %d\n", i);
 		fflush(stdout);
-
-		sleep(1);
 	}
 
 	printf("Finished creating clients.\n");
