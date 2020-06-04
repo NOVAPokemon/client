@@ -20,7 +20,7 @@ void run_client(int client_num) {
 	char *args[]={"./executable", "-a", "-n", client_num_string, NULL};
 
 	int out;
-	out = open(client_filename, O_WRONLY | O_CREAT, S_IRUSR | S_IRGRP | S_IWGRP | S_IWUSR);
+	out = open(client_filename, O_WRONLY | O_CREAT | O_APPEND, 0666);
 
 	dup2(out, fileno(stdout));
 	dup2(fileno(stdout), fileno(stderr));
