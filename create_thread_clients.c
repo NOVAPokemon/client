@@ -13,7 +13,7 @@ void run_client(int client_num) {
 	char *client_filename = malloc(8*sizeof(char) + 10);
 	bzero(client_filename, (8*1+10));
 
-	sprintf(client_filename, "client_%d", client_num);
+	sprintf(client_filename, "/logs/client_%d", client_num);
 
 	char *client_num_string = malloc(10);
 	sprintf(client_num_string, "%d", client_num);
@@ -24,7 +24,7 @@ void run_client(int client_num) {
 
 	dup2(out, fileno(stdout));
 	dup2(fileno(stdout), fileno(stderr));
-	
+
 	close(out);
 
 	printf("Executing client...\n");
