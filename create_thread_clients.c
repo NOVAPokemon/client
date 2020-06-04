@@ -10,8 +10,7 @@
 #include <fcntl.h>
 
 void run_client(int client_num) {
-	char *client_filename = malloc(8*sizeof(char) + 10);
-	bzero(client_filename, (8*1+10));
+	char *client_filename = malloc((30 + 10) * sizeof(char));
 
 	sprintf(client_filename, "/logs/failure_logs/client_%d", client_num);
 
