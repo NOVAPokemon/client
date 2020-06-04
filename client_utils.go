@@ -231,7 +231,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 	}
 }
 
-func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[string]*pokemons.Pokemon, trainerItems map[string]items.Item, outChannel chan ws.GenericMsg) error {
+func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[string]*pokemons.Pokemon,
+	trainerItems map[string]items.Item, outChannel *ws.SyncChannel) error {
 	if selectedPokemon == nil {
 		newPokemon, err := changeActivePokemon(trainerPokemons, outChannel)
 		if err != nil {
@@ -253,9 +254,13 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			useItemMsg.Emit(ws.MakeTimestamp())
 			useItemMsg.LogEmit(battles.UseItem)
 			toSend := useItemMsg.SerializeToWSMessage()
-			outChannel <- ws.GenericMsg{
+			err = outChannel.Write(ws.GenericMsg{
 				MsgType: websocket.TextMessage,
 				Data:    []byte(toSend.Serialize()),
+			})
+
+			if err != nil {
+				return err
 			}
 
 			return nil
@@ -284,17 +289,26 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			attackMsg.Emit(ws.MakeTimestamp())
 			attackMsg.LogEmit(battles.Attack)
 			toSend := attackMsg.SerializeToWSMessage()
-			outChannel <- ws.GenericMsg{
+			err := outChannel.Write(ws.GenericMsg{
 				MsgType: websocket.TextMessage,
 				Data:    []byte(toSend.Serialize()),
+			})
+
+			if err != nil {
+				return err
 			}
+
 		} else if randNr < probAttack+probDef {
 			// defend
 			log.Info("Defending...")
 			toSend := battles.DefendMessage{}.SerializeToWSMessage()
-			outChannel <- ws.GenericMsg{
+			err := outChannel.Write(ws.GenericMsg{
 				MsgType: websocket.TextMessage,
 				Data:    []byte(toSend.Serialize()),
+			})
+
+			if err != nil {
+				return err
 			}
 		} else {
 			// use item
@@ -308,9 +322,13 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			useItemMsg.Emit(ws.MakeTimestamp())
 			useItemMsg.LogEmit(battles.UseItem)
 			toSend := useItemMsg.SerializeToWSMessage()
-			outChannel <- ws.GenericMsg{
+			err = outChannel.Write(ws.GenericMsg{
 				MsgType: websocket.TextMessage,
 				Data:    []byte(toSend.Serialize()),
+			})
+
+			if err != nil {
+				return err
 			}
 		}
 		return nil
@@ -337,7 +355,7 @@ func getItemToUseOnPokemon(trainerItems map[string]items.Item) (*items.Item, err
 	return nil, errorNoAppliableItems
 }
 
-func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan ws.GenericMsg) (*pokemons.Pokemon, error) {
+func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel *ws.SyncChannel) (*pokemons.Pokemon, error) {
 	nextPokemon, err := getAlivePokemon(pokemons)
 	if err != nil {
 		return nil, wrapChangeActivePokemonError(err)
@@ -351,10 +369,15 @@ func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan 
 	selectPokemonMsg.LogEmit(battles.SelectPokemon)
 
 	toSend := selectPokemonMsg.SerializeToWSMessage()
-	outChannel <- ws.GenericMsg{
+	err = outChannel.Write(ws.GenericMsg{
 		MsgType: websocket.TextMessage,
 		Data:    []byte(toSend.Serialize()),
+	})
+
+	if err != nil {
+		return nil, err
 	}
+
 	return nextPokemon, nil
 }
 
