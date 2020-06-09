@@ -25,8 +25,12 @@ const (
 	errorNextBattleMove           = "error in next battle move"
 	errorChangeActivePokemon      = "error changing active pokemon"
 	errorMakeMicrotransaction     = "error making microtransaction"
+	errRefreshingAuthToken        = "error refreshing auth token"
 
 	errorBattleErrorMsgFormat = "got battle error msg %s"
+
+	errListeningToNotifications = "error listening to notifications"
+	errUpdatingLocation         = "error updating location"
 )
 
 var (
@@ -56,6 +60,18 @@ func wrapRegisterAndGetTokensError(err error) error {
 
 func wrapLoginAndGeTokensError(err error) error {
 	return errors.Wrap(err, errorLoginAndGetTokens)
+}
+
+func wrapErrorListeningToNotifications(err error) error {
+	return errors.Wrap(err, errListeningToNotifications)
+}
+
+func wrapErrorUpdatingLocation(err error) error {
+	return errors.Wrap(err, errUpdatingLocation)
+}
+
+func wrapErrorRefreshingAuthToken(err error) error {
+	return errors.Wrap(err, errRefreshingAuthToken)
 }
 
 func wrapBuyRandomItemError(err error) error {
