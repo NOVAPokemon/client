@@ -141,18 +141,22 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 
 func (c *NovaPokemonClient) StartListeningToNotifications() {
 	go func() {
-		err := c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
-		if err != nil {
-			log.Error(err)
+		for {
+			err := c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
+			if err != nil {
+				log.Error(wrapErrorListeningToNotifications(err))
+			}
 		}
 	}()
 }
 
 func (c *NovaPokemonClient) StartUpdatingLocation() {
 	go func() {
-		err := c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
-		if err != nil {
-			log.Error(err)
+		for {
+			err := c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
+			if err != nil {
+				log.Error(wrapErrorUpdatingLocation(err))
+			}
 		}
 	}()
 }
@@ -183,7 +187,7 @@ func (c *NovaPokemonClient) MainLoopAuto() {
 			log.Info("Refresh authentication tokens timer triggered. Refreshing...")
 			err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
 			if err != nil {
-				log.Error(err)
+				log.Error(wrapErrorRefreshingAuthToken(err))
 			}
 			authTimer.Reset(authRefreshTime * time.Minute)
 		}
@@ -229,9 +233,9 @@ func (c *NovaPokemonClient) MainLoopCLI() {
 			}
 		case <-authTimer.C:
 			log.Info("Refresh authentication tokens timer triggered. Refreshing...")
-			err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+			err := c.authClient.RefreshAuthToken()
 			if err != nil {
-				log.Error(err)
+				log.Error(wrapErrorRefreshingAuthToken(err))
 			}
 			authTimer.Reset(authRefreshTime * time.Minute)
 		}
@@ -450,7 +454,6 @@ func (c *NovaPokemonClient) ChallengePlayer(otherPlayer string) error {
 	if err != nil {
 		return wrapChallengePlayerError(err)
 	}
-
 	return nil
 }
 
@@ -564,8 +567,9 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 	defer ticker.Stop()
 	gymsWithServer := c.locationClient.Gyms
 	for i := 0; i < len(gymsWithServer); i++ {
-		gym := gymsWithServer[i].Gym
-		serverName := gymsWithServer[i].ServerName
+		idx := rand.Intn(len(gymsWithServer))
+		gym := gymsWithServer[idx].Gym
+		serverName := gymsWithServer[idx].ServerName
 		gymInfo, err := c.gymsClient.GetGymInfo(serverName, gym.Name)
 		if err != nil {
 			return wrapStartLookForRaid(err)
