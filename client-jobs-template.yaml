@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: clients
-          image: "novapokemon/client:race"
+          image: "novapokemon/client:latest"
           imagePullPolicy: Always
           command: ["sh", "-c", "./multiclient"]
           envFrom:
