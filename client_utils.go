@@ -41,10 +41,12 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 	cdTimer := time.NewTimer(2 * time.Second)
 	expireTimer := time.NewTimer(timeout)
 
-	var startTime = time.Now()
-	var started = false
-	var selectedPokemon *pokemons.Pokemon
-	var adversaryPokemon *pokemons.Pokemon
+	var (
+		startTime        = time.Now()
+		started          = false
+		selectedPokemon  *pokemons.Pokemon
+		adversaryPokemon *pokemons.Pokemon
+	)
 
 	go func() {
 		select {
@@ -62,6 +64,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 		select {
 		case <-channels.FinishChannel:
 			return nil
+		case <-channels.RejectedChannel:
+			return nil
 		case <-cdTimer.C:
 			// if the battle hasn't started but the updatedPokemon is already picked, do nothing
 			if started {
@@ -77,11 +81,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 			cooldownDuration := time.Duration(RandInt(1000, 1500))
 			cdTimer.Reset(cooldownDuration * time.Millisecond)
-
 		case msg, ok := <-channels.InChannel:
-
 			if !ok {
-				continue
+				return nil
 			}
 
 			msgParsed, err := ws.ParseMessage(msg)
@@ -108,7 +110,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			case ws.Reject:
 				log.Info("battle was rejected")
 				close(channels.RejectedChannel)
-				close(channels.FinishChannel)
 
 				if requestTimestamp == 0 {
 					break
@@ -133,7 +134,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				} else {
 					log.Warn(errMsg.Info)
 				}
-
+			case ws.Finish:
+				log.Info("Received finish message")
+				close(channels.FinishChannel)
 			case battles.UpdatePokemon:
 				desMsg, err := battles.DeserializeBattleMsg(msgParsed)
 				if err != nil {
