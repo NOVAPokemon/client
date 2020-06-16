@@ -15,7 +15,6 @@ spec:
       containers:
         - name: clients
           image: "novapokemon/client:race"
-          imagePullPolicy: Always
           command: ["sh", "-c", "./multiclient"]
           envFrom:
             - configMapRef:
