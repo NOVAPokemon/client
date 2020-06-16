@@ -141,11 +141,9 @@ func (c *NovaPokemonClient) LoginAndGetTokens() error {
 
 func (c *NovaPokemonClient) StartListeningToNotifications() {
 	go func() {
-		for {
-			err := c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
-			if err != nil {
-				log.Error(wrapErrorListeningToNotifications(err))
-			}
+		err := c.notificationsClient.ListenToNotifications(c.authClient.AuthToken, c.emitFinish, c.receiveFinish)
+		if err != nil {
+			log.Error(wrapErrorListeningToNotifications(err))
 		}
 	}()
 }
