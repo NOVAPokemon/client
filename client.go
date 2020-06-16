@@ -565,7 +565,7 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
-	gymsWithServer := c.locationClient.Gyms
+	gymsWithServer := c.locationClient.GetGyms()
 	for i := 0; i < len(gymsWithServer); i++ {
 		idx := rand.Intn(len(gymsWithServer))
 		gym := gymsWithServer[idx].Gym
