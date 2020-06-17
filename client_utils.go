@@ -43,7 +43,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 	var (
 		startTime        = time.Now()
-		started          = false
+		started          = make(chan struct{})
 		selectedPokemon  *pokemons.Pokemon
 		adversaryPokemon *pokemons.Pokemon
 	)
@@ -52,9 +52,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 		select {
 		case <-channels.RejectedChannel:
 			return
+		case <-started:
+			return
 		case <-expireTimer.C:
-		}
-		if !started {
 			log.Warn("Leaving lobby because other player hasn't joined")
 			ws.CloseConnection(conn)
 		}
@@ -68,17 +68,17 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			return nil
 		case <-cdTimer.C:
 			// if the battle hasn't started but the updatedPokemon is already picked, do nothing
-			if started {
+			select {
+			case <-started:
 				err := doNextBattleMove(selectedPokemon, chosenPokemons, trainersClient.ItemsClaims.Items, channels.OutChannel)
 				if err != nil {
 					log.Error(err)
 					continue
 				}
-			} else {
+			default:
 				remainingTime := time.Until(startTime.Add(timeout))
 				log.Infof("Waiting on other player, timing out in %f seconds", remainingTime.Seconds())
 			}
-
 			cooldownDuration := time.Duration(RandInt(1000, 1500))
 			cdTimer.Reset(cooldownDuration * time.Millisecond)
 		case msg, ok := <-channels.InChannel:
@@ -93,8 +93,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 			switch msgParsed.MsgType {
 			case ws.Start:
-				started = true
-
+				close(started)
 				if requestTimestamp == 0 {
 					break
 				}
