@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: clients
-          image: "novapokemon/client:latest"
+          image: "novapokemon/client:race"
           command: ["sh", "-c", "./multiclient"]
           envFrom:
             - configMapRef:
