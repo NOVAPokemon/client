@@ -183,7 +183,7 @@ func (c *NovaPokemonClient) MainLoopAuto() {
 			}
 		case <-authTimer.C:
 			log.Info("Refresh authentication tokens timer triggered. Refreshing...")
-			err := c.authClient.LoginWithUsernameAndPassword(c.Username, c.Password)
+			err := c.authClient.RefreshAuthToken()
 			if err != nil {
 				log.Error(wrapErrorRefreshingAuthToken(err))
 			}
