@@ -593,14 +593,12 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 
 		err = autoManageBattle(c.trainersClient, conn, *channels, pokemonsToUse, 0)
 		if err != nil {
-			return wrapStartLookForRaid(err)
+			log.Error(wrapStartLookForRaid(err))
+			continue
 		}
-
 		return nil
 	}
-
 	log.Warn(wrapStartLookForRaid(errors.New("there are no gyms nearby")))
-
 	return nil
 }
 

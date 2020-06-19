@@ -41,7 +41,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 	rand.Seed(time.Now().Unix())
 	const timeout = 30 * time.Second
-
 	cdTimer := time.NewTimer(2 * time.Second)
 	expireTimer := time.NewTimer(timeout)
 
@@ -54,21 +53,24 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 	go func() {
 		select {
-		case <-channels.RejectedChannel:
-			return
 		case <-started:
-			return
+		case <-channels.FinishChannel:
+		case <-channels.RejectedChannel:
 		case <-expireTimer.C:
 			log.Warn("Leaving lobby because other player hasn't joined")
-			return
+			if err := conn.Close(); err != nil {
+				log.Error(err)
+			}
 		}
 	}()
 
 	for {
 		select {
 		case <-channels.FinishChannel:
+			log.Warn("Leaving lobby because it was rejected")
 			return nil
 		case <-channels.RejectedChannel:
+			log.Warn("Leaving lobby because it has ended")
 			return nil
 		case <-cdTimer.C:
 			// if the battle hasn't started but the updatedPokemon is already picked, do nothing
