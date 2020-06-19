@@ -33,7 +33,11 @@ const (
 
 func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Conn, channels battles.BattleChannels,
 	chosenPokemons map[string]*pokemons.Pokemon, requestTimestamp int64) error {
-	defer ws.CloseConnection(conn)
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	rand.Seed(time.Now().Unix())
 	const timeout = 30 * time.Second
@@ -56,7 +60,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			return
 		case <-expireTimer.C:
 			log.Warn("Leaving lobby because other player hasn't joined")
-			ws.CloseConnection(conn)
+			return
 		}
 	}()
 
