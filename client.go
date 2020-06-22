@@ -45,7 +45,7 @@ type NovaPokemonClient struct {
 	gymsClient              *clients.GymClient
 	microtransacitonsClient *clients.MicrotransactionsClient
 
-	notificationsChannel chan *utils.Notification
+	notificationsChannel chan utils.Notification
 	operationsChannel    chan Operation
 
 	emitFinish    chan struct{}
@@ -62,7 +62,7 @@ func (c *NovaPokemonClient) init() {
 
 	c.config = config
 
-	c.notificationsChannel = make(chan *utils.Notification, maxNotificationsBuffered)
+	c.notificationsChannel = make(chan utils.Notification, maxNotificationsBuffered)
 	c.operationsChannel = make(chan Operation)
 
 	c.emitFinish = make(chan struct{})
@@ -300,9 +300,8 @@ func (c *NovaPokemonClient) TestOperation(operation Operation) (bool, error) {
 	}
 }
 
-func (c *NovaPokemonClient) HandleNotifications(notification *utils.Notification, operationsChannel chan Operation,
+func (c *NovaPokemonClient) HandleNotifications(notification utils.Notification, operationsChannel chan Operation,
 	clientMode string) {
-
 	var (
 		rejected       bool
 		rejectedChance float64
@@ -476,7 +475,7 @@ func (c *NovaPokemonClient) startAutoTrade() error {
 
 // Notification Handlers
 
-func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notification, rejected bool) error {
+func (c *NovaPokemonClient) handleTradeNotification(notification utils.Notification, rejected bool) error {
 	var content notifications.WantsToTradeContent
 	err := json.Unmarshal(notification.Content, &content)
 	if err != nil {
@@ -497,7 +496,7 @@ func (c *NovaPokemonClient) handleTradeNotification(notification *utils.Notifica
 	return err
 }
 
-func (c *NovaPokemonClient) handleChallengeNotification(notification *utils.Notification, rejected bool) error {
+func (c *NovaPokemonClient) handleChallengeNotification(notification utils.Notification, rejected bool) error {
 	log.Info("I was challenged to a battle")
 
 	var content notifications.WantsToBattleContent
