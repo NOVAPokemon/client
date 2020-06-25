@@ -67,10 +67,10 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 	for {
 		select {
 		case <-channels.FinishChannel:
-			log.Warn("Leaving lobby because it was rejected")
+			log.Warn("Leaving lobby because it was finished")
 			return nil
 		case <-channels.RejectedChannel:
-			log.Warn("Leaving lobby because it has ended")
+			log.Warn("Leaving lobby because it was rejected")
 			return nil
 		case <-cdTimer.C:
 			// if the battle hasn't started but the updatedPokemon is already picked, do nothing
