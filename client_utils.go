@@ -51,19 +51,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 		adversaryPokemon *pokemons.Pokemon
 	)
 
-	go func() {
-		select {
-		case <-started:
-		case <-channels.FinishChannel:
-		case <-channels.RejectedChannel:
-		case <-expireTimer.C:
-			log.Warn("Leaving lobby because other player hasn't joined")
-			if err := conn.Close(); err != nil {
-				log.Error(err)
-			}
-		}
-	}()
-
 	for {
 		select {
 		case <-channels.FinishChannel:
@@ -100,6 +87,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			switch msgParsed.MsgType {
 			case ws.Start:
 				close(started)
+				if !expireTimer.Stop() {
+					<-expireTimer.C
+				}
 				if requestTimestamp == 0 {
 					break
 				}
@@ -235,6 +225,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				}
 				log.Warn("Updated Token!")
 			}
+		case <-expireTimer.C:
+			log.Warn("Leaving lobby because other player hasn't joined")
 		}
 	}
 }
