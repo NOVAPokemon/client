@@ -585,6 +585,10 @@ func (c *NovaPokemonClient) StartLookForNearbyRaid() error {
 		if !gymInfo.RaidForming {
 			log.Info("Creating a new raid...")
 			if err = c.gymsClient.CreateRaid(serverName, gymInfo.Name); err != nil {
+				if strings.Contains(err.Error(), fmt.Sprintf("got status code %d", http.StatusConflict)) {
+					log.Warn(wrapStartLookForRaid(err))
+					return nil
+				}
 				return wrapStartLookForRaid(err)
 			}
 		}
