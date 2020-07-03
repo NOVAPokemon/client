@@ -378,6 +378,10 @@ func (c *NovaPokemonClient) BuyRandomItem() error {
 	randomItem := items[rand.Intn(len(items))]
 	statsToken, itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
 	if err != nil {
+		if strings.Contains(err.Error(), fmt.Sprintf("got status code %d", http.StatusForbidden)) {
+			log.Warn(err)
+			return nil
+		}
 		return wrapBuyRandomItemError(err)
 	}
 
