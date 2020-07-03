@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/NOVAPokemon/utils/clients"
@@ -65,7 +66,12 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			case <-started:
 				err := doNextBattleMove(selectedPokemon, chosenPokemons, trainersClient.ItemsClaims.Items, channels.OutChannel)
 				if err != nil {
-					log.Error(err)
+					if strings.Contains(err.Error(), errorNoPokemonAlive.Error()) {
+						log.Warn(err)
+					} else {
+						log.Error(err)
+					}
+					
 					continue
 				}
 			default:
