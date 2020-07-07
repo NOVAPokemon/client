@@ -44,28 +44,28 @@ func main() {
 		log.Infof("Thread number: %d", clientNum)
 	}
 
-	client := NovaPokemonClient{
+	client := novaPokemonClient{
 		Username: username,
 		Password: RandomString(20),
 	}
 	client.init()
 
-	err := client.RegisterAndGetTokens()
+	err := client.registerAndGetTokens()
 	if err != nil {
 		log.Error(err)
 		return
 	}
 
-	client.StartListeningToNotifications()
-	client.StartUpdatingLocation()
+	client.startListeningToNotifications()
+	client.startUpdatingLocation()
 
 	if auto {
-		client.MainLoopAuto()
+		client.mainLoopAuto()
 	} else {
-		client.MainLoopCLI()
+		client.mainLoopCLI()
 	}
 
-	client.Finish()
+	client.finish()
 }
 
 func setLogToFile(username string) {
