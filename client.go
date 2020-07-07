@@ -590,7 +590,7 @@ func (c *novaPokemonClient) startLookForNearbyRaid() error {
 			continue
 		}
 
-		log.Info("ongoing raid :", gymInfo.RaidForming)
+		log.Info("ongoing raid: ", gymInfo.RaidForming)
 		if !gymInfo.RaidForming {
 			log.Info("Creating a new raid...")
 			if err = c.gymsClient.CreateRaid(serverName, gymInfo.Name); err != nil {
