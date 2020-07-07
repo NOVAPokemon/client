@@ -1,6 +1,6 @@
 package main
 
-var Matrix = [][]float32{
+var matrix = [][]float32{
 	/* ChallengeCmd, QueueCmd, MakeMicrotransactionCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd */
 	/* c,   q,    m,,  t,    s,    c,	 r*/
 	{0.05, 0.05, 0.10, 0.20, 0.20, 0.30, 0.10}, // previousMove = Challenge

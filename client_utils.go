@@ -50,6 +50,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 		started          = make(chan struct{})
 		selectedPokemon  *pokemons.Pokemon
 		adversaryPokemon *pokemons.Pokemon
+		desMsg           ws.Serializable
 	)
 
 	for {
@@ -71,14 +72,14 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					} else {
 						log.Error(err)
 					}
-					
+
 					continue
 				}
 			default:
 				remainingTime := time.Until(startTime.Add(timeout))
 				log.Infof("Waiting on other player, timing out in %f seconds", remainingTime.Seconds())
 			}
-			cooldownDuration := time.Duration(RandInt(1000, 1500))
+			cooldownDuration := time.Duration(randInt(1000, 1500))
 			cdTimer.Reset(cooldownDuration * time.Millisecond)
 		case msg, ok := <-channels.InChannel:
 			if !ok {
@@ -124,7 +125,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				totalTimeTookStart += timeTook
 				log.Infof(logAverageTimeStartBattle, float64(totalTimeTookStart)/float64(numberMeasuresStart))
 			case ws.Error:
-				desMsg, err := ws.DeserializeMsg(msgParsed)
+				desMsg, err = ws.DeserializeMsg(msgParsed)
 				if err != nil {
 					return wrapAutoManageBattleError(err)
 				}
@@ -139,7 +140,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				log.Info("Received finish message")
 				close(channels.FinishChannel)
 			case battles.UpdatePokemon:
-				desMsg, err := battles.DeserializeBattleMsg(msgParsed)
+				desMsg, err = battles.DeserializeBattleMsg(msgParsed)
 				if err != nil {
 					return wrapAutoManageBattleError(err)
 				}
@@ -147,8 +148,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				updatePokemonMsg := desMsg.(*battles.UpdatePokemonMessage)
 				updatePokemonMsg.Receive(ws.MakeTimestamp())
 
-				timeTook, ok := updatePokemonMsg.TimeTook()
-				if ok {
+				timeTook, valid := updatePokemonMsg.TimeTook()
+				if valid {
 					totalTimeTookBattleMsgs += timeTook
 					numberMeasuresBattleMsgs++
 					log.Infof(logTimeTookBattleMsg, timeTook)
@@ -176,7 +177,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				}
 
 			case battles.RemoveItem:
-				desMsg, err := battles.DeserializeBattleMsg(msgParsed)
+				desMsg, err = battles.DeserializeBattleMsg(msgParsed)
 				if err != nil {
 					return wrapAutoManageBattleError(err)
 				}
@@ -184,7 +185,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				removeItemMsg := desMsg.(*battles.RemoveItemMessage)
 				delete(trainersClient.ItemsClaims.Items, removeItemMsg.ItemId)
 			case ws.SetToken:
-				desMsg, err := battles.DeserializeBattleMsg(msgParsed)
+				desMsg, err = battles.DeserializeBattleMsg(msgParsed)
 				if err != nil {
 					return wrapAutoManageBattleError(err)
 				}
@@ -192,12 +193,13 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				setTokenMsg := desMsg.(*ws.SetTokenMessage)
 				switch setTokenMsg.TokenField {
 				case tokens.StatsTokenHeaderName:
-					decodedToken, err := tokens.ExtractStatsToken(setTokenMsg.TokensString[0])
+					var statsToken *tokens.TrainerStatsToken
+					statsToken, err = tokens.ExtractStatsToken(setTokenMsg.TokensString[0])
 					if err != nil {
 						log.Error(err)
 						continue
 					}
-					trainersClient.TrainerStatsClaims = decodedToken
+					trainersClient.TrainerStatsClaims = statsToken
 					trainersClient.TrainerStatsToken = setTokenMsg.TokensString[0]
 
 				case tokens.PokemonsTokenHeaderName:
@@ -207,7 +209,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 						if len(tkn) == 0 {
 							continue
 						}
-						decodedToken, err := tokens.ExtractPokemonToken(tkn)
+
+						var pokemonToken *tokens.PokemonToken
+						pokemonToken, err = tokens.ExtractPokemonToken(tkn)
 						if err != nil {
 							log.Error(err)
 							continue
@@ -215,18 +219,19 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 						trainersClient.ClaimsLock.Lock()
 
-						trainersClient.PokemonClaims[decodedToken.Pokemon.Id.Hex()] = *decodedToken
-						trainersClient.PokemonTokens[decodedToken.Pokemon.Id.Hex()] = tkn
+						trainersClient.PokemonClaims[pokemonToken.Pokemon.Id.Hex()] = *pokemonToken
+						trainersClient.PokemonTokens[pokemonToken.Pokemon.Id.Hex()] = tkn
 
 						trainersClient.ClaimsLock.Unlock()
 					}
 				case tokens.ItemsTokenHeaderName:
-					decodedToken, err := tokens.ExtractItemsToken(setTokenMsg.TokensString[0])
+					var itemsToken *tokens.ItemsToken
+					itemsToken, err = tokens.ExtractItemsToken(setTokenMsg.TokensString[0])
 					if err != nil {
 						log.Error(err)
 						continue
 					}
-					trainersClient.ItemsClaims = decodedToken
+					trainersClient.ItemsClaims = itemsToken
 					trainersClient.ItemsToken = setTokenMsg.TokensString[0]
 				}
 				log.Warn("Updated Token!")
@@ -384,7 +389,7 @@ func getAlivePokemon(pokemons map[string]*pokemons.Pokemon) (*pokemons.Pokemon, 
 	return nil, errorNoPokemonAlive
 }
 
-func RandomString(n int) string {
+func randomString(n int) string {
 	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
 	s := make([]rune, n)
@@ -395,6 +400,6 @@ func RandomString(n int) string {
 	return string(s)
 }
 
-func RandInt(min int, max int) int {
+func randInt(min int, max int) int {
 	return min + rand.Intn(max-min)
 }

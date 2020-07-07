@@ -9,37 +9,37 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Operation string
+type operation string
 
 // *** WARNING ***
 // ORDER MATTERS FOR MATRIX
-var ops = []Operation{ChallengeCmd, QueueCmd, MakeMicrotransactionCmd, TradeCmd, StoreCmd, CatchCmd, RaidCmd}
+var ops = []operation{challengeCmd, queueCmd, makeMicrotransactionCmd, tradeCmd, storeCmd, catchCmd, raidCmd}
 
 const (
-	ChallengeCmd                Operation = "b"
-	ChallengeSpecificTrainerCmd Operation = "bs"
-	QueueCmd                    Operation = "q"
-	TradeSpecificTrainerCmd     Operation = "ts"
-	TradeCmd                    Operation = "t"
-	MakeMicrotransactionCmd     Operation = "m"
-	StoreCmd                    Operation = "s"
-	CatchCmd                    Operation = "c"
-	RaidCmd                     Operation = "r"
-	NoOp                        Operation = "h"
-	ExitCmd                     Operation = "e"
+	challengeCmd                operation = "b"
+	challengeSpecificTrainerCmd operation = "bs"
+	queueCmd                    operation = "q"
+	tradeSpecificTrainerCmd     operation = "ts"
+	tradeCmd                    operation = "t"
+	makeMicrotransactionCmd     operation = "m"
+	storeCmd                    operation = "s"
+	catchCmd                    operation = "c"
+	raidCmd                     operation = "r"
+	noOp                        operation = "h"
+	exitCmd                     operation = "e"
 
-	AcceptCmd Operation = "a"
-	RejectCmd Operation = "r"
+	acceptCmd operation = "a"
+	rejectCmd operation = "r"
 )
 
-type TrainerSim struct {
+type trainerSim struct {
 	previousOp int
 	ProbMatrix [][]float32
 }
 
-func NewTrainerSim() *TrainerSim {
+func newTrainerSim() *trainerSim {
 	rand.Seed(time.Now().Unix())
-	return &TrainerSim{
+	return &trainerSim{
 		ProbMatrix: getAndVerifyProbMatrix(),
 	}
 }
@@ -61,10 +61,10 @@ func getAndVerifyProbMatrix() [][]float32 {
 			panic("Matrix has wrong number of lines")
 		}
 	*/
-	matrix := Matrix
+	matrixAux := matrix
 
-	for i := 0; i < len(matrix); i++ {
-		probs := matrix[i]
+	for i := 0; i < len(matrixAux); i++ {
+		probs := matrixAux[i]
 		var total float32
 
 		if len(probs) != len(ops) {
@@ -79,10 +79,10 @@ func getAndVerifyProbMatrix() [][]float32 {
 		}
 	}
 
-	return matrix
+	return matrixAux
 }
 
-func (s *TrainerSim) GetNextOperation() Operation {
+func (s *trainerSim) getNextOperation() operation {
 
 	s.logNextProbabilities()
 
@@ -102,7 +102,7 @@ func (s *TrainerSim) GetNextOperation() Operation {
 	panic("Did not get any move from matrix of operations, probabilities are probably set up wrong")
 }
 
-func (s *TrainerSim) logNextProbabilities() {
+func (s *trainerSim) logNextProbabilities() {
 	probs := s.ProbMatrix[s.previousOp]
 	log.Infof("Previous operation : %s", string(ops[s.previousOp]))
 	for i := 0; i < len(probs); i++ {

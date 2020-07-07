@@ -48,7 +48,7 @@ type novaPokemonClient struct {
 	microtransacitonsClient *clients.MicrotransactionsClient
 
 	notificationsChannel chan utils.Notification
-	operationsChannel    chan Operation
+	operationsChannel    chan operation
 
 	emitFinish    chan struct{}
 	receiveFinish chan bool
@@ -65,7 +65,7 @@ func (c *novaPokemonClient) init() {
 	c.config = config
 
 	c.notificationsChannel = make(chan utils.Notification, maxNotificationsBuffered)
-	c.operationsChannel = make(chan Operation)
+	c.operationsChannel = make(chan operation)
 
 	c.emitFinish = make(chan struct{})
 	c.receiveFinish = make(chan bool)
@@ -170,13 +170,13 @@ func (c *novaPokemonClient) mainLoopAuto() {
 
 	const waitTime = 2 * time.Second
 	waitNotificationsTimer := time.NewTimer(waitTime)
-	autoClient := NewTrainerSim()
+	autoClient := newTrainerSim()
 	for {
 		select {
 		case notification := <-c.notificationsChannel:
 			c.handleNotifications(notification, c.operationsChannel, auto)
 		case <-waitNotificationsTimer.C:
-			nextOp := autoClient.GetNextOperation()
+			nextOp := autoClient.getNextOperation()
 			exit, err := c.testOperation(nextOp)
 			if err != nil {
 				log.Error(err)
@@ -218,7 +218,7 @@ func (c *novaPokemonClient) mainLoopCLI() {
 				"%s - try to catch pokemon\n"+
 				"%s - raid closest gym\n"+
 				"%s - exit\n",
-			QueueCmd, ChallengeCmd, ChallengeSpecificTrainerCmd, TradeCmd, TradeSpecificTrainerCmd, StoreCmd, MakeMicrotransactionCmd, CatchCmd, RaidCmd, ExitCmd)
+			queueCmd, challengeCmd, challengeSpecificTrainerCmd, tradeCmd, tradeSpecificTrainerCmd, storeCmd, makeMicrotransactionCmd, catchCmd, raidCmd, exitCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
@@ -255,54 +255,54 @@ func (c *novaPokemonClient) readOperation() {
 		}
 		trimmed := strings.TrimSpace(command)
 		if len(trimmed) > 0 {
-			c.operationsChannel <- Operation(trimmed)
+			c.operationsChannel <- operation(trimmed)
 		} else {
-			c.operationsChannel <- NoOp
+			c.operationsChannel <- noOp
 		}
 	}
 }
 
-func (c *novaPokemonClient) testOperation(operation Operation) (bool, error) {
+func (c *novaPokemonClient) testOperation(operation operation) (bool, error) {
 	split := strings.Split(string(operation), " ")
 	log.Infof("Issued operation: %s, args: %s", split[0], split[1:])
-	switch Operation(split[0]) {
-	case ChallengeCmd:
+	switch operation(split[0]) {
+	case challengeCmd:
 		return false, c.startAutoChallenge()
-	case ChallengeSpecificTrainerCmd:
+	case challengeSpecificTrainerCmd:
 		if len(split) > 1 {
 			return false, c.challengePlayer(split[1])
 		} else {
 			return false, errors.New("missing trainer name")
 		}
-	case QueueCmd:
+	case queueCmd:
 		return false, c.startAutoBattleQueue()
-	case TradeCmd:
+	case tradeCmd:
 		return false, c.startAutoTrade()
-	case TradeSpecificTrainerCmd:
+	case tradeSpecificTrainerCmd:
 		split = strings.Split(string(operation), " ")
 		if len(split) > 1 {
 			return false, c.startTradeWithPlayer(split[1])
 		} else {
 			return false, errors.New("missing trainer name")
 		}
-	case StoreCmd:
+	case storeCmd:
 		return false, c.buyRandomItem()
-	case CatchCmd:
+	case catchCmd:
 		return false, c.catchWildPokemon()
-	case MakeMicrotransactionCmd:
+	case makeMicrotransactionCmd:
 		return false, c.makeRandomMicrotransaction()
-	case RaidCmd:
+	case raidCmd:
 		return false, c.startLookForNearbyRaid()
-	case NoOp:
+	case noOp:
 		return false, nil
-	case ExitCmd:
+	case exitCmd:
 		return true, nil
 	default:
 		return false, errorInvalidCommand
 	}
 }
 
-func (c *novaPokemonClient) handleNotifications(notification utils.Notification, operationsChannel chan Operation,
+func (c *novaPokemonClient) handleNotifications(notification utils.Notification, operationsChannel chan operation,
 	clientMode string) {
 	var (
 		rejected       bool
@@ -311,13 +311,13 @@ func (c *novaPokemonClient) handleNotifications(notification utils.Notification,
 	if clientMode == cli {
 		log.Infof("got notification: %s\n"+
 			"%s - accept\n"+
-			"%s - reject\n", notification.Type, AcceptCmd, RejectCmd)
+			"%s - reject\n", notification.Type, acceptCmd, rejectCmd)
 
 		select {
 		case op := <-operationsChannel:
 			switch op {
-			case AcceptCmd:
-			case RejectCmd:
+			case acceptCmd:
+			case rejectCmd:
 				rejected = true
 			default:
 				log.Warnf("invalid notification response: %s", op)

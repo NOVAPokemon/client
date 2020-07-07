@@ -23,18 +23,19 @@ func main() {
 		// flag.PrintDefaults()
 	}
 
-	var auto bool
-	flag.BoolVar(&auto, "a", false, "start automatic client")
+	var (
+		autoClient bool
+		logToStdout bool
+		clientNum int
+	)
 
-	var logToStdout bool
+	flag.BoolVar(&autoClient, "a", false, "start automatic client")
 	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
-
-	var clientNum int
 	flag.IntVar(&clientNum, "n", -1, "client thread number")
 
 	flag.Parse()
 
-	username := RandomString(20)
+	username := randomString(20)
 
 	if !logToStdout {
 		setLogToFile(username)
@@ -46,7 +47,7 @@ func main() {
 
 	client := novaPokemonClient{
 		Username: username,
-		Password: RandomString(20),
+		Password: randomString(20),
 	}
 	client.init()
 
@@ -59,7 +60,7 @@ func main() {
 	client.startListeningToNotifications()
 	client.startUpdatingLocation()
 
-	if auto {
+	if autoClient {
 		client.mainLoopAuto()
 	} else {
 		client.mainLoopCLI()
