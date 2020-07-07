@@ -223,8 +223,8 @@ func (c *novaPokemonClient) mainLoopCLI() {
 		select {
 		case notification := <-c.notificationsChannel:
 			c.handleNotifications(notification, c.operationsChannel, cli)
-		case operation := <-c.operationsChannel:
-			exit, err := c.testOperation(operation)
+		case op := <-c.operationsChannel:
+			exit, err := c.testOperation(op)
 			if err != nil {
 				log.Error(err)
 				continue
@@ -262,8 +262,8 @@ func (c *novaPokemonClient) readOperation() {
 	}
 }
 
-func (c *novaPokemonClient) testOperation(operation operation) (bool, error) {
-	split := strings.Split(string(operation), " ")
+func (c *novaPokemonClient) testOperation(op operation) (bool, error) {
+	split := strings.Split(string(op), " ")
 	log.Infof("Issued operation: %s, args: %s", split[0], split[1:])
 	switch operation(split[0]) {
 	case challengeCmd:
@@ -279,7 +279,7 @@ func (c *novaPokemonClient) testOperation(operation operation) (bool, error) {
 	case tradeCmd:
 		return false, c.startAutoTrade()
 	case tradeSpecificTrainerCmd:
-		split = strings.Split(string(operation), " ")
+		split = strings.Split(string(op), " ")
 		if len(split) > 1 {
 			return false, c.startTradeWithPlayer(split[1])
 		} else {
