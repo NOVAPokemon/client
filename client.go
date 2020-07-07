@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -11,6 +10,9 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	errors2 "github.com/NOVAPokemon/utils/clients/errors"
+	"github.com/pkg/errors"
 
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
@@ -179,7 +181,11 @@ func (c *novaPokemonClient) mainLoopAuto() {
 			nextOp := autoClient.getNextOperation()
 			exit, err := c.testOperation(nextOp)
 			if err != nil {
-				log.Error(err)
+				if errors.Cause(err) == errors2.ErrorNoPokeballs {
+					log.Warn(err)
+				} else {
+					log.Error(err)
+				}
 			} else if exit {
 				return
 			}
@@ -226,7 +232,11 @@ func (c *novaPokemonClient) mainLoopCLI() {
 		case op := <-c.operationsChannel:
 			exit, err := c.testOperation(op)
 			if err != nil {
-				log.Error(err)
+				if errors.Cause(err) == errors2.ErrorNoPokeballs {
+					log.Warn(err)
+				} else {
+					log.Error(err)
+				}
 				continue
 			} else if exit {
 				return
