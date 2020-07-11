@@ -8,8 +8,7 @@
     "update_interval": 5,
     "timeout": 15,
     "params": {
-      "starting_location_lat": 0.5,
-      "starting_location_lon": 0.5,
+      "starting_location": false,
       "max_moving_speed": 2.0,
       "moving_probability": 1.0,
       "max_distance_from_start": 8
