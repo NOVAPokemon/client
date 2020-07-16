@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/comms_manager"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,14 +26,19 @@ func main() {
 	}
 
 	var (
-		autoClient bool
-		logToStdout bool
-		clientNum int
+		autoClient   bool
+		logToStdout  bool
+		clientNum    int
+		locationTag  string
+		commsManager comms_manager.CommunicationManager
 	)
 
 	flag.BoolVar(&autoClient, "a", false, "start automatic client")
 	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
 	flag.IntVar(&clientNum, "n", -1, "client thread number")
+	flag.StringVar(&locationTag, "-l", "", "location tag for client")
+
+	delayedComms := utils.SetDelayedFlag()
 
 	flag.Parse()
 
@@ -45,11 +52,15 @@ func main() {
 		log.Infof("Thread number: %d", clientNum)
 	}
 
+	if utils.CheckDelayedFlag(*delayedComms) {
+		commsManager = utils.CreateDelayedCommunicationManager(*delayedComms, locationTag)
+	}
+
 	client := novaPokemonClient{
 		Username: username,
 		Password: randomString(20),
 	}
-	client.init()
+	client.init(commsManager)
 
 	err := client.registerAndGetTokens()
 	if err != nil {
