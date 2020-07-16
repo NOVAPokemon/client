@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/websockets"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,7 +30,7 @@ func main() {
 		logToStdout  bool
 		clientNum    int
 		regionTag    string
-		commsManager utils.CommunicationManager
+		commsManager websockets.CommunicationManager
 	)
 
 	flag.BoolVar(&autoClient, "a", false, "start automatic client")

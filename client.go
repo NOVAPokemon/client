@@ -12,6 +12,7 @@ import (
 	"time"
 
 	errors2 "github.com/NOVAPokemon/utils/clients/errors"
+	"github.com/NOVAPokemon/utils/websockets"
 	"github.com/pkg/errors"
 
 	"github.com/NOVAPokemon/utils"
@@ -58,10 +59,10 @@ type novaPokemonClient struct {
 
 var (
 	httpCLient = &http.Client{}
-	manager    utils.CommunicationManager
+	manager    websockets.CommunicationManager
 )
 
-func (c *novaPokemonClient) init(commsManager utils.CommunicationManager) {
+func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager) {
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
