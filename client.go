@@ -12,6 +12,7 @@ import (
 	"time"
 
 	errors2 "github.com/NOVAPokemon/utils/clients/errors"
+	"github.com/NOVAPokemon/utils/comms_manager"
 	"github.com/pkg/errors"
 
 	"github.com/NOVAPokemon/utils"
@@ -56,9 +57,12 @@ type novaPokemonClient struct {
 	receiveFinish chan bool
 }
 
-var httpCLient = &http.Client{}
+var (
+	httpCLient = &http.Client{}
+	manager    comms_manager.CommunicationManager
+)
 
-func (c *novaPokemonClient) init() {
+func (c *novaPokemonClient) init(commsManager comms_manager.CommunicationManager) {
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
@@ -72,15 +76,17 @@ func (c *novaPokemonClient) init() {
 	c.emitFinish = make(chan struct{})
 	c.receiveFinish = make(chan bool)
 
-	c.authClient = clients.NewAuthClient()
-	c.battlesClient = clients.NewBattlesClient()
-	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig)
-	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel)
-	c.trainersClient = clients.NewTrainersClient(httpCLient)
-	c.storeClient = clients.NewStoreClient()
-	c.locationClient = clients.NewLocationClient(c.config.LocationConfig)
-	c.gymsClient = clients.NewGymClient(httpCLient)
-	c.microtransacitonsClient = clients.NewMicrotransactionsClient()
+	manager = commsManager
+
+	c.authClient = clients.NewAuthClient(manager)
+	c.battlesClient = clients.NewBattlesClient(manager)
+	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager)
+	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager)
+	c.trainersClient = clients.NewTrainersClient(httpCLient, manager)
+	c.storeClient = clients.NewStoreClient(manager)
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, manager)
+	c.gymsClient = clients.NewGymClient(httpCLient, manager)
+	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager)
 }
 
 func (c *novaPokemonClient) startTradeWithPlayer(playerId string) error {
