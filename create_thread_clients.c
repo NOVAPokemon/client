@@ -9,101 +9,102 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void run_client(int client_num) {
-	char *client_filename = malloc((14 + 10) * sizeof(char));
+void run_client(int client_num, char *clients_region) {
+    char *client_filename = malloc((14 + 10) * sizeof(char));
 
-	sprintf(client_filename, "/logs/client_%d", client_num);
+    sprintf(client_filename, "/logs/client_%d", client_num);
 
-	char *client_num_string = malloc(10);
-	sprintf(client_num_string, "%d", client_num);
-	char *args[]={"./executable", "-a", "-n", client_num_string, NULL};
+    char *client_num_string = malloc(10);
+    sprintf(client_num_string, "%d", client_num);
+    char *args[] = {"./executable", "-a", "-n", client_num_string, "-r", clients_region, NULL};
 
-	int out;
-	out = open(client_filename, O_WRONLY | O_CREAT | O_APPEND, 0666);
+    int out;
+    out = open(client_filename, O_WRONLY | O_CREAT | O_APPEND, 0666);
 
-	dup2(out, fileno(stdout));
-	dup2(fileno(stdout), fileno(stderr));
+    dup2(out, fileno(stdout));
+    dup2(fileno(stdout), fileno(stderr));
 
-	close(out);
+    close(out);
 
-	printf("Executing client...\n");
-	fflush(stdout);
-	int retExec = execvp(args[0], args);
+    printf("Executing client...\n");
+    fflush(stdout);
+    int retExec = execvp(args[0], args);
 
-	if (retExec < 0) {
-		printf("ERROR: exec failed with status %d and errno %d.\n", retExec, errno);
-		fflush(stdout);
-		exit(errno);
-	}
+    if (retExec < 0) {
+        printf("ERROR: exec failed with status %d and errno %d.\n", retExec, errno);
+        fflush(stdout);
+        exit(errno);
+    }
 
 }
 
 void *wait_for_client(void *args) {
-	int *args_int = (int *)args;
+    int *args_int = (int *) args;
 
-	int client_num = args_int[0];
-	pid_t fork_pid = args_int[1];
+    int client_num = args_int[0];
+    pid_t fork_pid = args_int[1];
 
-	int status;
-	waitpid(fork_pid, &status, 0);
+    int status;
+    waitpid(fork_pid, &status, 0);
 
-	printf("Client %d crashed! Check logs.\n", client_num);
-	fflush(stdout);
+    printf("Client %d crashed! Check logs.\n", client_num);
+    fflush(stdout);
 
-	exit(1);
+    exit(1);
 
-	return NULL;
+    return NULL;
 }
 
-int main(int argc, char const* argv[])
-{
-	if (argc != 1) {
-		printf("wrong number of arguments: %d\nexpected 1, since number of clients is an environment variable\n", argc);
-		fflush(stdout);
-		return 1;
-	}
+int main(int argc, char const *argv[]) {
+    if (argc != 2) {
+        printf("wrong number of arguments: %d\nexpected 1 with region string\n", argc - 1);
+        fflush(stdout);
+        return 1;
+    }
 
-	char* p;
-	long LONG_NUM_CLIENTS = strtol(getenv("NUM_CLIENTS"), &p, 10);
-	if (*p != '\0' || errno != 0) {
-		return 1;
-	}
+    char *clients_region = argv[1];
 
-	int NUM_CLIENTS = LONG_NUM_CLIENTS;
-	pthread_t waiting_threads_ids[NUM_CLIENTS];
-	int thread_args[NUM_CLIENTS][2];
+    char *p;
+    long LONG_NUM_CLIENTS = strtol(getenv("NUM_CLIENTS"), &p, 10);
+    if (*p != '\0' || errno != 0) {
+        return 1;
+    }
 
-	printf("Starting %d clients (threads)...\n", NUM_CLIENTS);
-	fflush(stdout);
+    int NUM_CLIENTS = LONG_NUM_CLIENTS;
+    pthread_t waiting_threads_ids[NUM_CLIENTS];
+    int thread_args[NUM_CLIENTS][2];
 
-	for(int i = 0; i < NUM_CLIENTS; i++) {
-		printf("Creating client %d\n", i);
-		fflush(stdout);
+    printf("Starting %d clients (threads)...\n", NUM_CLIENTS);
+    fflush(stdout);
 
-		pid_t fork_id = fork();
+    for (int i = 0; i < NUM_CLIENTS; i++) {
+        printf("Creating client %d\n", i);
+        fflush(stdout);
 
-		if (fork_id == 0) {
-			// CHILD
-			run_client(i);
-		}
+        pid_t fork_id = fork();
 
-		thread_args[i][0] = i;
-		thread_args[i][1] = fork_id;		
+        if (fork_id == 0) {
+            // CHILD
+            run_client(i, clients_region);
+        }
 
-		pthread_create(&waiting_threads_ids[i], NULL, wait_for_client, thread_args[i]);
+        thread_args[i][0] = i;
+        thread_args[i][1] = fork_id;
 
-		printf("Created client %d\n", i);
-		fflush(stdout);
-	}
+        pthread_create(&waiting_threads_ids[i], NULL, wait_for_client, thread_args[i]);
 
-	printf("Finished creating clients.\n");
+        printf("Created client %d\n", i);
+        fflush(stdout);
+    }
 
-	for(int i = 0; i < NUM_CLIENTS; i++) {
-		pthread_join(waiting_threads_ids[i], NULL);
-	}
+    printf("Finished creating clients.\n");
 
-	printf("Thread crashed... Check logs.\n");
-	fflush(stdout);
+    for (int i = 0; i < NUM_CLIENTS; i++) {
+        pthread_join(waiting_threads_ids[i], NULL);
+    }
 
-	return 0;
+    printf("Thread crashed... Check logs.\n");
+    fflush(stdout);
+
+    return 0;
 }
