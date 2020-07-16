@@ -1,7 +1,16 @@
 {
   "groups": [
-    10,
-    5,
-    15
+    {
+      "num_clients": 10,
+      "region": "eu-west-1"
+    },
+    {
+      "num_clients": 5,
+      "region": "eu-west-1"
+    },
+    {
+      "num_clients": 5,
+      "region": "eu-west-1"
+    }
   ]
 }
