@@ -29,16 +29,14 @@ func main() {
 		autoClient   bool
 		logToStdout  bool
 		clientNum    int
-		locationTag  string
+		regionTag    string
 		commsManager comms_manager.CommunicationManager
 	)
 
 	flag.BoolVar(&autoClient, "a", false, "start automatic client")
 	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
 	flag.IntVar(&clientNum, "n", -1, "client thread number")
-	flag.StringVar(&locationTag, "-l", "", "location tag for client")
-
-	delayedComms := utils.SetDelayedFlag()
+	flag.StringVar(&regionTag, "r", "", "region tag for client")
 
 	flag.Parse()
 
@@ -52,9 +50,11 @@ func main() {
 		log.Infof("Thread number: %d", clientNum)
 	}
 
-	if *delayedComms {
-		commsManager = utils.CreateDelayedCommunicationManager(utils.DefaultDelayConfigFilename, locationTag)
+	if regionTag != "" {
+		log.Infof("starting client in region %s", regionTag)
+		commsManager = utils.CreateDelayedCommunicationManager(utils.DefaultDelayConfigFilename, regionTag)
 	} else {
+		log.Info("starting client without any region associated")
 		commsManager = utils.CreateDefaultCommunicationManager()
 	}
 
