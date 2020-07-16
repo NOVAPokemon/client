@@ -52,8 +52,10 @@ func main() {
 		log.Infof("Thread number: %d", clientNum)
 	}
 
-	if utils.CheckDelayedFlag(*delayedComms) {
-		commsManager = utils.CreateDelayedCommunicationManager(*delayedComms, locationTag)
+	if *delayedComms {
+		commsManager = utils.CreateDelayedCommunicationManager(utils.DefaultDelayConfigFilename, locationTag)
+	} else {
+		commsManager = utils.CreateDefaultCommunicationManager()
 	}
 
 	client := novaPokemonClient{
