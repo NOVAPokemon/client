@@ -12,7 +12,6 @@ import (
 	"time"
 
 	errors2 "github.com/NOVAPokemon/utils/clients/errors"
-	"github.com/NOVAPokemon/utils/comms_manager"
 	"github.com/pkg/errors"
 
 	"github.com/NOVAPokemon/utils"
@@ -59,10 +58,10 @@ type novaPokemonClient struct {
 
 var (
 	httpCLient = &http.Client{}
-	manager    comms_manager.CommunicationManager
+	manager    utils.CommunicationManager
 )
 
-func (c *novaPokemonClient) init(commsManager comms_manager.CommunicationManager) {
+func (c *novaPokemonClient) init(commsManager utils.CommunicationManager) {
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
