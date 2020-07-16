@@ -56,19 +56,19 @@ void *wait_for_client(void *args) {
 }
 
 int main(int argc, char const *argv[]) {
-    if (argc != 2) {
-        printf("wrong number of arguments: %d\nexpected 1 with region string\n", argc - 1);
+    if (argc != 1) {
+        printf("wrong number of arguments: %d\nall arguments should be passed as environment variables\n", argc - 1);
         fflush(stdout);
         return 1;
     }
-
-    char *clients_region = argv[1];
 
     char *p;
     long LONG_NUM_CLIENTS = strtol(getenv("NUM_CLIENTS"), &p, 10);
     if (*p != '\0' || errno != 0) {
         return 1;
     }
+
+    char *clients_region = getenv("REGION");
 
     int NUM_CLIENTS = LONG_NUM_CLIENTS;
     pthread_t waiting_threads_ids[NUM_CLIENTS];

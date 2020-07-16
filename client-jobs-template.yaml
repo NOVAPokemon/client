@@ -22,6 +22,8 @@ spec:
           env:
             - name: NUM_CLIENTS
               value: "VAR_CLIENT_NUMS"
+            - name: REGION
+              value: "VAR_REGION"
           securityContext:
             capabilities:
               add:
