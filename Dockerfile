@@ -5,6 +5,8 @@ ENV multiclient="multiclient"
 RUN mkdir /service && mkdir /logs && mkdir /logs/failure_logs
 WORKDIR /service
 
+COPY location_tags.json .
+COPY delays_config.json .
 COPY $executable .
 COPY $multiclient .
 COPY configs.json .
