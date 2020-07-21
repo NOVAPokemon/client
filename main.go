@@ -52,7 +52,7 @@ func main() {
 
 	if regionTag != "" {
 		log.Infof("starting client in region %s", regionTag)
-		commsManager = utils.CreateDelayedCommunicationManager(utils.DefaultDelayConfigFilename, regionTag)
+		commsManager = utils.CreateDelayedCommunicationManager(utils.DefaultDelayConfigFilename, regionTag, true)
 	} else {
 		log.Info("starting client without any region associated")
 		commsManager = utils.CreateDefaultCommunicationManager()
