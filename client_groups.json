@@ -2,11 +2,11 @@
   "groups": [
     {
       "num_clients": 10,
-      "region": "eu-west-1"
+      "region": "eu-west-2"
     },
     {
       "num_clients": 5,
-      "region": "eu-west-1"
+      "region": "random"
     },
     {
       "num_clients": 5,
