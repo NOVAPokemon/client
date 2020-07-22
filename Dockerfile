@@ -8,6 +8,8 @@ WORKDIR /service
 COPY location_tags.json .
 COPY delays_config.json .
 COPY client_delays.json .
+COPY location_weights.json .
+COPY regions_to_area.json .
 COPY $executable .
 COPY $multiclient .
 COPY configs.json .
