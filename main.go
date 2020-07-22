@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"time"
@@ -13,7 +15,8 @@ import (
 )
 
 const (
-	logsPath = "/logs"
+	logsPath                       = "/logs"
+	defaultLocationWeightsFilename = "location_weights.json"
 )
 
 func main() {
@@ -50,19 +53,25 @@ func main() {
 		log.Infof("Thread number: %d", clientNum)
 	}
 
-	if regionTag != "" {
-		log.Infof("starting client in region %s", regionTag)
-		commsManager = utils.CreateDefaultDelayedManager(regionTag, true)
-	} else {
+	if regionTag == "" {
 		log.Info("starting client without any region associated")
 		commsManager = utils.CreateDefaultCommunicationManager()
+	} else if regionTag == "random" {
+		locationWeights := loadLocationWeights(defaultLocationWeightsFilename)
+		regionTag = getRandomRegion(locationWeights)
+		log.Infof("starting client with random region %s", regionTag)
+		commsManager = utils.CreateDefaultDelayedManager(regionTag, true)
+	} else {
+		log.Infof("starting client in region %s", regionTag)
+		commsManager = utils.CreateDefaultDelayedManager(regionTag, true)
 	}
 
 	client := novaPokemonClient{
 		Username: username,
 		Password: randomString(20),
 	}
-	client.init(commsManager)
+
+	client.init(commsManager, regionTag)
 
 	err := client.registerAndGetTokens()
 	if err != nil {
@@ -82,6 +91,22 @@ func main() {
 	client.finish()
 }
 
+func getRandomRegion(locationWeights utils.LocationWeights) string {
+	encodedRegions := map[int]string{}
+	encodedRegionsMultByWeight := []int{}
+	encodedValue := 0
+	for regionName, weight := range locationWeights {
+		encodedRegions[encodedValue] = regionName
+		for i := 0; i < weight; i++ {
+			encodedRegionsMultByWeight = append(encodedRegionsMultByWeight, weight)
+		}
+	}
+
+	randIdx := rand.Intn(len(encodedRegionsMultByWeight))
+	randRegionEncoded := encodedRegionsMultByWeight[randIdx]
+	return encodedRegions[randRegionEncoded]
+}
+
 func setLogToFile(username string) {
 	filename := fmt.Sprintf("%s/%s.log", logsPath, username)
 
@@ -96,4 +121,21 @@ func setLogToFile(username string) {
 	}
 
 	log.SetOutput(file)
+}
+
+func loadLocationWeights(locationWeightsFilename string) utils.LocationWeights {
+	fileData, err := ioutil.ReadFile(locationWeightsFilename)
+	if err != nil {
+		log.Error("error loading regions filename")
+		panic(err)
+	}
+
+	var locationWeights utils.LocationWeights
+	err = json.Unmarshal(fileData, &locationWeights)
+	if err != nil {
+		panic(err)
+		return nil
+	}
+
+	return locationWeights
 }
