@@ -62,7 +62,7 @@ var (
 	manager    websockets.CommunicationManager
 )
 
-func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager) {
+func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, region string) {
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
@@ -84,7 +84,7 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager) {
 	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager)
 	c.trainersClient = clients.NewTrainersClient(httpCLient, manager)
 	c.storeClient = clients.NewStoreClient(manager)
-	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, manager)
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager)
 	c.gymsClient = clients.NewGymClient(httpCLient, manager)
 	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager)
 }
