@@ -96,18 +96,24 @@ func getRandomRegion(locationWeights utils.LocationWeights) string {
 	encodedRegionsMultByWeight := []int{}
 	encodedValue := 0
 
-	log.Info("location weights: %v", locationWeights)
+	log.Info("location weights: ", locationWeights)
 
 	for regionName, weight := range locationWeights {
 		encodedRegions[encodedValue] = regionName
 		for i := 0; i < weight; i++ {
-			encodedRegionsMultByWeight = append(encodedRegionsMultByWeight, weight)
+			encodedRegionsMultByWeight = append(encodedRegionsMultByWeight, encodedValue)
 		}
+		encodedValue++
 	}
 
 	randIdx := rand.Intn(len(encodedRegionsMultByWeight))
 	randRegionEncoded := encodedRegionsMultByWeight[randIdx]
-	return encodedRegions[randRegionEncoded]
+
+	randRegion, ok := encodedRegions[randRegionEncoded]
+	if !ok {
+		panic(fmt.Sprintf("no region matched encoded %d", randRegionEncoded))
+	}
+	return randRegion
 }
 
 func setLogToFile(username string) {
