@@ -95,6 +95,9 @@ func getRandomRegion(locationWeights utils.LocationWeights) string {
 	encodedRegions := map[int]string{}
 	encodedRegionsMultByWeight := []int{}
 	encodedValue := 0
+
+	log.Info("location weights: %v", locationWeights)
+
 	for regionName, weight := range locationWeights {
 		encodedRegions[encodedValue] = regionName
 		for i := 0; i < weight; i++ {

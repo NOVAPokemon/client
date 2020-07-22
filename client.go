@@ -90,7 +90,8 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, r
 }
 
 func (c *novaPokemonClient) startTradeWithPlayer(playerId string) error {
-	lobbyId, serverName, err := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken, c.trainersClient.ItemsToken)
+	lobbyId, serverName, err := c.tradesClient.CreateTradeLobby(playerId, c.authClient.AuthToken,
+		c.trainersClient.ItemsToken)
 	if err != nil {
 		return wrapStartTradeError(err)
 	}
