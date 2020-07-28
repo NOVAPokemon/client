@@ -73,7 +73,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 			msgData := wsMsg.Content.Data
 			switch wsMsg.Content.AppMsgType {
-			case ws.Start:
+			case battles.StartRaid:
+				fallthrough
+			case battles.StartBattle:
 				close(started)
 				if !expireTimer.Stop() {
 					<-expireTimer.C
