@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/mitchellh/mapstructure"
 	"math"
 	"math/rand"
 	"strings"
@@ -81,7 +82,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					break
 				}
 
-
 			case ws.Reject:
 				log.Info("battle was rejected")
 				close(channels.RejectedChannel)
@@ -90,7 +90,10 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					break
 				}
 			case ws.Error:
-				errMsg := msgData.(ws.ErrorMessage)
+				errMsg := &ws.ErrorMessage{}
+				if err := mapstructure.Decode(msgData, errMsg); err != nil {
+					panic(err)
+				}
 				if errMsg.Fatal {
 					return wrapAutoManageBattleError(newBattleErrorMsgError(errMsg.Info))
 				} else {
@@ -100,7 +103,10 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				log.Info("Received finish message")
 				close(channels.FinishChannel)
 			case battles.UpdatePokemon:
-				updatePokemonMsg := msgData.(battles.UpdatePokemonMessage)
+				updatePokemonMsg := &battles.UpdatePokemonMessage{}
+				if err := mapstructure.Decode(msgData, updatePokemonMsg); err != nil {
+					panic(err)
+				}
 				updatedPokemon := updatePokemonMsg.Pokemon
 				if updatePokemonMsg.Owner {
 					chosenPokemons[updatedPokemon.Id.Hex()] = &updatedPokemon
@@ -119,13 +125,22 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				}
 
 			case battles.RemoveItem:
-				removeItemMsg := msgData.(battles.RemoveItemMessage)
+				removeItemMsg := &battles.RemoveItemMessage{}
+				if err := mapstructure.Decode(msgData, removeItemMsg); err != nil {
+					panic(err)
+				}
 				delete(trainersClient.ItemsClaims.Items, removeItemMsg.ItemId)
 			case battles.Status:
-				statusMsg := msgData.(battles.StatusMessage)
+				statusMsg := &battles.StatusMessage{}
+				if err := mapstructure.Decode(msgData, statusMsg); err != nil {
+					panic(err)
+				}
 				log.Debug(statusMsg)
 			case ws.SetToken:
-				setTokenMsg := msgData.(ws.SetTokenMessage)
+				setTokenMsg := &ws.SetTokenMessage{}
+				if err := mapstructure.Decode(msgData, setTokenMsg); err != nil {
+					panic(err)
+				}
 				switch setTokenMsg.TokenField {
 				case tokens.StatsTokenHeaderName:
 					var statsToken *tokens.TrainerStatsToken
@@ -199,7 +214,7 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 			toSend := battles.UseItemMessage{
 				ItemId: revive.Id.Hex(),
 			}
-			outChannel <-toSend.ConvertToWSMessage()
+			outChannel <- toSend.ConvertToWSMessage()
 			if err != nil {
 				return err
 			}
