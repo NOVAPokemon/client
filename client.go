@@ -379,7 +379,7 @@ func (c *novaPokemonClient) makeRandomMicrotransaction() error {
 	if err != nil {
 		return wrapMakeRandomMicrotransaction(err)
 	}
-	log.Infof("Made transaction with id: %s", transactionId.Hex())
+	log.Infof("Made transaction with id: %s", transactionId)
 	err = c.trainersClient.SetTrainerStatsToken(statsToken)
 	if err != nil {
 		return wrapMakeRandomMicrotransaction(err)
