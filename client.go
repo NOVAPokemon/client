@@ -697,7 +697,7 @@ func (c *novaPokemonClient) validateStatsTokens() {
 func (c *novaPokemonClient) validatePokemonTokens() {
 	c.trainersClient.ClaimsLock.RLock()
 
-	hashes := make(map[string][]byte, len(c.trainersClient.PokemonClaims))
+	hashes := make(map[string]string, len(c.trainersClient.PokemonClaims))
 	for _, tkn := range c.trainersClient.PokemonClaims {
 		hashes[tkn.Pokemon.Id.Hex()] = tkn.PokemonHash
 	}
