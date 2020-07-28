@@ -500,7 +500,7 @@ func (c *novaPokemonClient) startAutoTrade() error {
 
 func (c *novaPokemonClient) handleTradeNotification(notification utils.Notification, rejected bool) error {
 	var content notifications.WantsToTradeContent
-	err := json.Unmarshal(notification.Content, &content)
+	err := json.Unmarshal([]byte(notification.Content), &content)
 	if err != nil {
 		return wrapHandleTradeNotificationError(err)
 	}
@@ -524,7 +524,7 @@ func (c *novaPokemonClient) handleChallengeNotification(notification utils.Notif
 
 	var content notifications.WantsToBattleContent
 
-	err := json.Unmarshal(notification.Content, &content)
+	err := json.Unmarshal([]byte(notification.Content), &content)
 	if err != nil {
 		return wrapHandleBattleNotificationError(err)
 	}
