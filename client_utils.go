@@ -82,7 +82,7 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 					break
 				}
 
-			case ws.Reject:
+			case battles.RejectBattle:
 				log.Info("battle was rejected")
 				close(channels.RejectedChannel)
 
