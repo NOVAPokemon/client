@@ -109,16 +109,16 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				}
 				updatedPokemon := updatePokemonMsg.Pokemon
 				if updatePokemonMsg.Owner {
-					chosenPokemons[updatedPokemon.Id.Hex()] = &updatedPokemon
+					chosenPokemons[updatedPokemon.Id] = &updatedPokemon
 					selectedPokemon = &updatedPokemon
-					log.Infof("Self Pokemon:\tID:%s, HP:%d, maxHP:%d, Species:%s", selectedPokemon.Id.Hex(),
+					log.Infof("Self Pokemon:\tID:%s, HP:%d, maxHP:%d, Species:%s", selectedPokemon.Id,
 						selectedPokemon.HP,
 						selectedPokemon.MaxHP,
 						selectedPokemon.Species)
 
 				} else {
 					adversaryPokemon = &updatedPokemon
-					log.Infof("Adversary Pokemon:\tID:%s, HP:%d, maxHP:%d, Species:%s", adversaryPokemon.Id.Hex(),
+					log.Infof("Adversary Pokemon:\tID:%s, HP:%d, maxHP:%d, Species:%s", adversaryPokemon.Id,
 						adversaryPokemon.HP,
 						adversaryPokemon.MaxHP,
 						adversaryPokemon.Species)
@@ -169,8 +169,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 
 						trainersClient.ClaimsLock.Lock()
 
-						trainersClient.PokemonClaims[pokemonToken.Pokemon.Id.Hex()] = *pokemonToken
-						trainersClient.PokemonTokens[pokemonToken.Pokemon.Id.Hex()] = tkn
+						trainersClient.PokemonClaims[pokemonToken.Pokemon.Id] = *pokemonToken
+						trainersClient.PokemonTokens[pokemonToken.Pokemon.Id] = tkn
 
 						trainersClient.ClaimsLock.Unlock()
 					}
@@ -210,9 +210,9 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 		if err != nil {
 			log.Info("no revive items left")
 		} else {
-			log.Infof("Using revive item ID %s...", revive.Id.Hex())
+			log.Infof("Using revive item ID %s...", revive.Id)
 			toSend := battles.UseItemMessage{
-				ItemId: revive.Id.Hex(),
+				ItemId: revive.Id,
 			}
 			outChannel <- toSend.ConvertToWSMessage()
 			if err != nil {
@@ -253,9 +253,9 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 				probUseItem = 0
 				continue
 			}
-			log.Infof("Using item: %s", itemToUse.Id.Hex())
+			log.Infof("Using item: %s", itemToUse.Id)
 			useItemMsg := battles.UseItemMessage{
-				ItemId: itemToUse.Id.Hex(),
+				ItemId: itemToUse.Id,
 			}
 			outChannel <- useItemMsg.ConvertToWSMessage()
 
@@ -293,12 +293,12 @@ func changeActivePokemon(pokemons map[string]*pokemons.Pokemon, outChannel chan 
 	if err != nil {
 		return nil, wrapChangeActivePokemonError(err)
 	}
-	log.Infof("Selecting pokemon:\tID:%s, HP: %d, Species: %s", nextPokemon.Id.Hex(),
+	log.Infof("Selecting pokemon:\tID:%s, HP: %d, Species: %s", nextPokemon.Id,
 		nextPokemon.HP,
 		nextPokemon.Species)
 
 	selectPokemonMsg := battles.SelectPokemonMessage{
-		PokemonId: nextPokemon.Id.Hex(),
+		PokemonId: nextPokemon.Id,
 	}
 
 	toSend := selectPokemonMsg

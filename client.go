@@ -655,7 +655,7 @@ func (c *novaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.P
 			continue
 		}
 
-		pokemonId := tkn.Pokemon.Id.Hex()
+		pokemonId := tkn.Pokemon.Id
 		if i == nr {
 			break
 		}
@@ -699,7 +699,7 @@ func (c *novaPokemonClient) validatePokemonTokens() {
 
 	hashes := make(map[string]string, len(c.trainersClient.PokemonClaims))
 	for _, tkn := range c.trainersClient.PokemonClaims {
-		hashes[tkn.Pokemon.Id.Hex()] = tkn.PokemonHash
+		hashes[tkn.Pokemon.Id] = tkn.PokemonHash
 	}
 
 	c.trainersClient.ClaimsLock.RUnlock()
