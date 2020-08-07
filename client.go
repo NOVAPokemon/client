@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"net/http"
+	http "github.com/bruno-anjos/archimedesHTTPClient"
 	"os"
 	"strings"
 	"time"
