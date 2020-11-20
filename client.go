@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	http "github.com/bruno-anjos/archimedesHTTPClient"
 	"os"
 	"strings"
 	"time"
+
+	http "github.com/bruno-anjos/archimedesHTTPClient"
 
 	errors2 "github.com/NOVAPokemon/utils/clients/errors"
 	"github.com/NOVAPokemon/utils/websockets"
@@ -58,7 +59,7 @@ type novaPokemonClient struct {
 }
 
 var (
-	httpCLient = &http.Client{}
+	httpClient = &http.Client{}
 	manager    websockets.CommunicationManager
 )
 
@@ -78,15 +79,22 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, r
 
 	manager = commsManager
 
-	c.authClient = clients.NewAuthClient(manager)
-	c.battlesClient = clients.NewBattlesClient(manager)
-	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager)
-	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager)
-	c.trainersClient = clients.NewTrainersClient(httpCLient, manager)
-	c.storeClient = clients.NewStoreClient(manager)
-	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager)
-	c.gymsClient = clients.NewGymClient(httpCLient, manager)
-	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager)
+	fallbackURL, exists := os.LookupEnv(http.FallbackEnvVar)
+	if !exists {
+		log.Fatalf("no fallback URL for archimedes")
+	}
+
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager, httpClient)
+	httpClient.InitArchimedesClient(fallbackURL, http.DefaultArchimedesPort, c.locationClient.CurrentLocation)
+
+	c.authClient = clients.NewAuthClient(manager, httpClient)
+	c.battlesClient = clients.NewBattlesClient(manager, httpClient)
+	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager, httpClient)
+	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager, httpClient)
+	c.trainersClient = clients.NewTrainersClient(httpClient, manager)
+	c.storeClient = clients.NewStoreClient(manager, httpClient)
+	c.gymsClient = clients.NewGymClient(httpClient, manager)
+	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager, httpClient)
 }
 
 func (c *novaPokemonClient) startTradeWithPlayer(playerId string) error {
