@@ -24,7 +24,7 @@ func main() {
 
 	flag.Usage = func() {
 		fmt.Printf("Usage\n")
-		fmt.Printf("./client -a -l \n")
+		fmt.Println("./client -a -l")
 		// flag.PrintDefaults()
 	}
 
@@ -56,14 +56,8 @@ func main() {
 	if regionTag == "" {
 		log.Info("starting client without any region associated")
 		commsManager = utils.CreateDefaultCommunicationManager()
-	} else if regionTag == "random" {
-		locationWeights := loadLocationWeights(defaultLocationWeightsFilename)
-		regionTag = getRandomRegion(locationWeights)
-		log.Infof("starting client with random region %s", regionTag)
-		commsManager = utils.CreateDefaultDelayedManager(regionTag, true)
 	} else {
-		log.Infof("starting client in region %s", regionTag)
-		commsManager = utils.CreateDefaultDelayedManager(regionTag, true)
+		commsManager = utils.CreateDefaultDelayedManager(true)
 	}
 
 	client := novaPokemonClient{

@@ -81,10 +81,13 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, r
 
 	fallbackURL, exists := os.LookupEnv(http.FallbackEnvVar)
 	if !exists {
-		log.Fatalf("no fallback URL for archimedes")
+		log.Panic("no fallback URL for archimedes")
+	} else {
+		log.Infof("fallback: %s", fallbackURL)
 	}
 
 	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager, httpClient)
+
 	httpClient.InitArchimedesClient(fallbackURL, http.DefaultArchimedesPort, c.locationClient.CurrentLocation)
 
 	c.authClient = clients.NewAuthClient(manager, httpClient)
@@ -150,6 +153,8 @@ func (c *novaPokemonClient) loginAndGetTokens() error {
 		return wrapLoginAndGeTokensError(err)
 	}
 
+	log.Infof("auth token: %s", c.authClient.AuthToken)
+
 	err = c.trainersClient.GetAllTrainerTokens(c.Username, c.authClient.AuthToken)
 	if err != nil {
 		return wrapLoginAndGeTokensError(err)
@@ -179,6 +184,8 @@ func (c *novaPokemonClient) startUpdatingLocation() {
 }
 
 func (c *novaPokemonClient) mainLoopAuto() {
+	log.Info("Starting AUTO loop...")
+
 	defer c.validateStatsTokens()
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
@@ -220,6 +227,8 @@ func (c *novaPokemonClient) mainLoopAuto() {
 }
 
 func (c *novaPokemonClient) mainLoopCLI() {
+	log.Info("Starting CLI loop...")
+
 	defer c.validateStatsTokens()
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
