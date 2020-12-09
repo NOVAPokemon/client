@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/mitchellh/mapstructure"
 	"math"
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/mitchellh/mapstructure"
 
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/items"

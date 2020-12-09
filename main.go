@@ -87,7 +87,8 @@ func main() {
 
 func getRandomRegion(locationWeights utils.LocationWeights) string {
 	encodedRegions := map[int]string{}
-	encodedRegionsMultByWeight := []int{}
+	var encodedRegionsMultByWeight []int
+	encodedRegionsMultByWeight = []int{}
 	encodedValue := 0
 
 	log.Info("location weights: ", locationWeights)

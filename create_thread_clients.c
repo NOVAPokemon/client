@@ -16,7 +16,7 @@ void run_client(int client_num, char *clients_region) {
 
     char *client_num_string = malloc(10);
     sprintf(client_num_string, "%d", client_num);
-    char *args[] = {"./executable", "-a", "-n", client_num_string, "-r", clients_region, NULL};
+    char *args[] = {"./executable", "-a", "-n", client_num_string, "-r", clients_region, "-l", NULL};
 
     int out;
     out = open(client_filename, O_WRONLY | O_CREAT | O_APPEND, 0666);
