@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	originalHTTP "net/http"
 )
 
 const (
@@ -59,7 +60,7 @@ type novaPokemonClient struct {
 }
 
 var (
-	httpClient = &http.Client{}
+	httpClient = &http.Client{Client: originalHTTP.Client{Timeout: clients.RequestTimeout}}
 	manager    websockets.CommunicationManager
 )
 
@@ -86,7 +87,7 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, r
 		log.Infof("fallback: %s", fallbackURL)
 	}
 
-	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager, httpClient)
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager, c.Username, httpClient)
 
 	httpClient.InitArchimedesClient(fallbackURL, http.DefaultArchimedesPort, c.locationClient.CurrentLocation)
 
