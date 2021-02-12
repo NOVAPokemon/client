@@ -7,10 +7,13 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/NOVAPokemon/utils"
+	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/websockets"
+	"github.com/golang/geo/s2"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -29,10 +32,12 @@ func main() {
 	}
 
 	var (
-		autoClient   bool
-		logToStdout  bool
-		clientNum    int
-		regionTag    string
+		autoClient  bool
+		logToStdout bool
+		clientNum   int
+		regionTag   string
+		timeout     string
+
 		commsManager websockets.CommunicationManager
 	)
 
@@ -40,6 +45,7 @@ func main() {
 	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
 	flag.IntVar(&clientNum, "n", -1, "client thread number")
 	flag.StringVar(&regionTag, "r", "", "region tag for client")
+	flag.StringVar(&timeout, "t", "", "duration for auto clients")
 
 	flag.Parse()
 
@@ -53,19 +59,23 @@ func main() {
 		log.Infof("Thread number: %d", clientNum)
 	}
 
-	if regionTag == "" {
-		log.Info("starting client without any region associated")
-		commsManager = utils.CreateDefaultCommunicationManager()
-	} else {
-		commsManager = utils.CreateDefaultDelayedManager(true)
-	}
-
 	client := novaPokemonClient{
 		Username: username,
 		Password: randomString(20),
 	}
 
-	client.init(commsManager, regionTag)
+	startingCell := s2.CellIDFromLatLng(clients.GetRandomLatLng(regionTag))
+
+	if regionTag == "" {
+		log.Info("starting client without any region associated")
+		commsManager = utils.CreateDefaultCommunicationManager()
+	} else {
+		commsManager = utils.CreateDefaultDelayedManager(true, &utils.OptionalConfigs{
+			CellID: startingCell,
+		})
+	}
+
+	client.init(commsManager, startingCell)
 
 	err := client.registerAndGetTokens()
 	if err != nil {
@@ -76,8 +86,31 @@ func main() {
 	client.startListeningToNotifications()
 	client.startUpdatingLocation()
 
+	var (
+		timeDuration time.Duration
+		maxDuration  = false
+	)
+	if timeout != "" {
+		maxDuration = true
+		var number int
+
+		number, err = strconv.Atoi(timeout[:len(timeout)-1])
+		if err != nil {
+			log.Panic(err)
+		}
+
+		switch timeout[len(timeout)-1] {
+		case 's', 'S':
+			timeDuration = time.Duration(number) * time.Second
+		case 'm', 'M':
+			timeDuration = time.Duration(number) * time.Minute
+		case 'h', 'H':
+			timeDuration = time.Duration(number) * time.Hour
+		}
+	}
+
 	if autoClient {
-		client.mainLoopAuto()
+		client.mainLoopAuto(maxDuration, timeDuration)
 	} else {
 		client.mainLoopCLI()
 	}

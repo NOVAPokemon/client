@@ -5,18 +5,26 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 
-void run_client(int client_num, char *clients_region) {
+void run_client(int client_num, char *clients_region, char *timeout_string) {
+    struct timespec tm;
+    clock_gettime(CLOCK_MONOTONIC, &tm);
+    // xor-ing with tv_nsec >> 31 to ensure even low precision clocks vary
+    // the low 32 bits
+    srand((unsigned) (tm.tv_sec ^ tm.tv_nsec ^ (tm.tv_nsec >> 31)));
+
+    int randomTime = rand() % 10 + 1;
+    sleep(randomTime);
+
     char *client_filename = malloc((14 + 10) * sizeof(char));
 
     sprintf(client_filename, "/logs/client_%d", client_num);
 
     char *client_num_string = malloc(10);
     sprintf(client_num_string, "%d", client_num);
-    char *args[] = {"./executable", "-a", "-n", client_num_string, "-r", clients_region, "-l", NULL};
+    char *args[] = {"./executable", "-a", "-n", client_num_string, "-r", clients_region, "-t", timeout_string, "-l",
+                    NULL};
 
     int out;
     out = open(client_filename, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -74,6 +82,8 @@ int main(int argc, char const *argv[]) {
     pthread_t waiting_threads_ids[NUM_CLIENTS];
     int thread_args[NUM_CLIENTS][2];
 
+    char *timeout_string = getenv("CLIENTS_TIMEOUT");
+
     printf("Starting %d clients (threads)...\n", NUM_CLIENTS);
     fflush(stdout);
 
@@ -85,7 +95,7 @@ int main(int argc, char const *argv[]) {
 
         if (fork_id == 0) {
             // CHILD
-            run_client(i, clients_region);
+            run_client(i, clients_region, timeout_string);
         }
 
         thread_args[i][0] = i;
