@@ -177,6 +177,7 @@ func (c *novaPokemonClient) startListeningToNotifications() {
 func (c *novaPokemonClient) startUpdatingLocation() {
 	go func() {
 		for {
+			log.Info("starting location updates")
 			err := c.locationClient.StartLocationUpdates(c.authClient.AuthToken)
 			if err != nil {
 				log.Error(wrapErrorUpdatingLocation(err))
