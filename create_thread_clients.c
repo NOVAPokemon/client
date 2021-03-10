@@ -58,8 +58,6 @@ void *wait_for_client(void *args) {
     printf("Client %d crashed! Check logs.\n", client_num);
     fflush(stdout);
 
-    exit(1);
-
     return NULL;
 }
 
@@ -111,6 +109,7 @@ int main(int argc, char const *argv[]) {
 
     for (int i = 0; i < NUM_CLIENTS; i++) {
         pthread_join(waiting_threads_ids[i], NULL);
+        printf("Finished thread %d", i);
     }
 
     printf("Thread crashed... Check logs.\n");
