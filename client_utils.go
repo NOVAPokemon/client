@@ -29,7 +29,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 	rand.Seed(time.Now().Unix())
 	const timeout = 30 * time.Second
 	cdTimer := time.NewTimer(2 * time.Second)
-	expireTimer := time.NewTimer(timeout)
 
 	var (
 		startTime        = time.Now()
@@ -78,9 +77,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				fallthrough
 			case battles.StartBattle:
 				close(started)
-				if !expireTimer.Stop() {
-					<-expireTimer.C
-				}
 				if requestTimestamp == 0 {
 					break
 				}
@@ -189,8 +185,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				}
 				log.Warn("Updated Token!")
 			}
-		case <-expireTimer.C:
-			log.Warn("Leaving lobby because other player hasn't joined")
 		}
 	}
 }
@@ -234,12 +228,12 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 	}
 
 	aux := float64(selectedPokemon.HP) / float64(selectedPokemon.MaxHP)
-	var probUseItem = math.Min(math.Max(0.7, 1-aux), (1-aux)/3)
+	probUseItem := math.Min(math.Max(0.7, 1-aux), (1-aux)/3)
 
 	for {
 		randNr := rand.Float64()
-		var probAttack = (1 - probUseItem) / 2
-		var probDef = (1 - probUseItem) / 2
+		probAttack := (1 - probUseItem) / 2
+		probDef := (1 - probUseItem) / 2
 
 		if randNr < probAttack {
 			// attack
@@ -321,7 +315,7 @@ func getAlivePokemon(pokemons map[string]*pokemons.Pokemon) (*pokemons.Pokemon, 
 }
 
 func randomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
 	s := make([]rune, n)
 	for i := range s {
@@ -331,6 +325,6 @@ func randomString(n int) string {
 	return string(s)
 }
 
-func randInt(min int, max int) int {
+func randInt(min, max int) int {
 	return min + rand.Intn(max-min)
 }
