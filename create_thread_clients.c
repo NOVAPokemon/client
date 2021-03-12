@@ -9,14 +9,24 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void run_client(int client_num, char *clients_region) {
+void run_client(int client_num, char *clients_region, char *timeout_string) {
+    struct timespec tm;
+    clock_gettime(CLOCK_MONOTONIC, &tm);
+    // xor-ing with tv_nsec >> 31 to ensure even low precision clocks vary
+    // the low 32 bits
+    srand((unsigned) (tm.tv_sec ^ tm.tv_nsec ^ (tm.tv_nsec >> 31)));
+
+    int randomTime = rand() % 10 + 1;
+    sleep(randomTime);
+
     char *client_filename = malloc((14 + 10) * sizeof(char));
 
     sprintf(client_filename, "/logs/client_%d", client_num);
 
     char *client_num_string = malloc(10);
     sprintf(client_num_string, "%d", client_num);
-    char *args[] = {"./executable", "-a", "-n", client_num_string, "-r", clients_region, NULL};
+    char *args[] = {"./executable", "-a", "-n", client_num_string, "-r", clients_region, "-t", timeout_string, "-l",
+                        NULL};
 
     int out;
     out = open(client_filename, O_WRONLY | O_CREAT | O_APPEND, 0666);
@@ -50,8 +60,6 @@ void *wait_for_client(void *args) {
     printf("Client %d crashed! Check logs.\n", client_num);
     fflush(stdout);
 
-    exit(1);
-
     return NULL;
 }
 
@@ -74,6 +82,8 @@ int main(int argc, char const *argv[]) {
     pthread_t waiting_threads_ids[NUM_CLIENTS];
     int thread_args[NUM_CLIENTS][2];
 
+    char *timeout_string = getenv("CLIENTS_TIMEOUT");
+
     printf("Starting %d clients (threads)...\n", NUM_CLIENTS);
     fflush(stdout);
 
@@ -85,7 +95,7 @@ int main(int argc, char const *argv[]) {
 
         if (fork_id == 0) {
             // CHILD
-            run_client(i, clients_region);
+            run_client(i, clients_region, timeout_string);
         }
 
         thread_args[i][0] = i;
@@ -101,6 +111,7 @@ int main(int argc, char const *argv[]) {
 
     for (int i = 0; i < NUM_CLIENTS; i++) {
         pthread_join(waiting_threads_ids[i], NULL);
+        printf("Finished thread %d", i);
     }
 
     printf("Thread crashed... Check logs.\n");

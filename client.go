@@ -58,7 +58,7 @@ type novaPokemonClient struct {
 }
 
 var (
-	httpCLient = &http.Client{}
+	httpClient = &http.Client{Timeout: clients.RequestTimeout}
 	manager    websockets.CommunicationManager
 )
 
@@ -78,15 +78,15 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, r
 
 	manager = commsManager
 
-	c.authClient = clients.NewAuthClient(manager)
-	c.battlesClient = clients.NewBattlesClient(manager)
-	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager)
-	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager)
-	c.trainersClient = clients.NewTrainersClient(httpCLient, manager)
-	c.storeClient = clients.NewStoreClient(manager)
-	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager)
-	c.gymsClient = clients.NewGymClient(httpCLient, manager)
-	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager)
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager, c.Username, httpClient)
+	c.authClient = clients.NewAuthClient(manager, httpClient)
+	c.battlesClient = clients.NewBattlesClient(manager, httpClient)
+	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager, httpClient)
+	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager, httpClient)
+	c.trainersClient = clients.NewTrainersClient(httpClient, manager)
+	c.storeClient = clients.NewStoreClient(manager, httpClient)
+	c.gymsClient = clients.NewGymClient(httpClient, manager)
+	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager, httpClient)
 }
 
 func (c *novaPokemonClient) startTradeWithPlayer(playerId string) error {
@@ -170,12 +170,17 @@ func (c *novaPokemonClient) startUpdatingLocation() {
 	}()
 }
 
-func (c *novaPokemonClient) mainLoopAuto() {
+func (c *novaPokemonClient) mainLoopAuto(maxDuration bool, duration time.Duration) {
 	defer c.validateStatsTokens()
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
 
 	authTimer := time.NewTimer(authRefreshTime * time.Minute)
+
+	var endChannel <-chan time.Time
+	if maxDuration {
+		endChannel = time.After(duration)
+	}
 
 	const waitTime = 2 * time.Second
 	waitNotificationsTimer := time.NewTimer(waitTime)
@@ -203,6 +208,9 @@ func (c *novaPokemonClient) mainLoopAuto() {
 				log.Error(wrapErrorRefreshingAuthToken(err))
 			}
 			authTimer.Reset(authRefreshTime * time.Minute)
+		case <-endChannel:
+			log.Infof("Finishing after %s", duration)
+			return
 		}
 		c.validateStatsTokens()
 		c.validatePokemonTokens()
@@ -231,7 +239,8 @@ func (c *novaPokemonClient) mainLoopCLI() {
 				"%s - try to catch pokemon\n"+
 				"%s - raid closest gym\n"+
 				"%s - exit\n",
-			queueCmd, challengeCmd, challengeSpecificTrainerCmd, tradeCmd, tradeSpecificTrainerCmd, storeCmd, makeMicrotransactionCmd, catchCmd, raidCmd, exitCmd)
+			queueCmd, challengeCmd, challengeSpecificTrainerCmd, tradeCmd, tradeSpecificTrainerCmd, storeCmd,
+			makeMicrotransactionCmd, catchCmd, raidCmd, exitCmd)
 
 		select {
 		case notification := <-c.notificationsChannel:
@@ -374,8 +383,10 @@ func (c *novaPokemonClient) makeRandomMicrotransaction() error {
 	}
 
 	randomItem := items[rand.Intn(len(items))]
-	log.Infof("making purchase of pack %s for %d money, gaining %d coins", randomItem.Name, randomItem.Price, randomItem.Coins)
-	transactionId, statsToken, err := c.microtransacitonsClient.PerformTransaction(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
+	log.Infof("making purchase of pack %s for %d money, gaining %d coins", randomItem.Name, randomItem.Price,
+		randomItem.Coins)
+	transactionId, statsToken, err := c.microtransacitonsClient.PerformTransaction(randomItem.Name,
+		c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
 	if err != nil {
 		return wrapMakeRandomMicrotransaction(err)
 	}
@@ -395,7 +406,8 @@ func (c *novaPokemonClient) buyRandomItem() error {
 	}
 
 	randomItem := items[rand.Intn(len(items))]
-	statsToken, itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken, c.trainersClient.TrainerStatsToken)
+	statsToken, itemsToken, err := c.storeClient.BuyItem(randomItem.Name, c.authClient.AuthToken,
+		c.trainersClient.TrainerStatsToken)
 	if err != nil {
 		if strings.Contains(err.Error(), fmt.Sprintf("got status code %d", http.StatusForbidden)) {
 			log.Warn(err)
@@ -454,7 +466,6 @@ func (c *novaPokemonClient) startAutoChallenge() error {
 
 func (c *novaPokemonClient) challengePlayer(otherPlayer string) error {
 	pokemonsToUse, pokemonTkns, err := c.getPokemonsForBattle(c.config.BattleConfig.PokemonsPerBattle)
-
 	if err != nil {
 		return wrapChallengePlayerError(err)
 	}
@@ -465,7 +476,6 @@ func (c *novaPokemonClient) challengePlayer(otherPlayer string) error {
 		c.trainersClient.TrainerStatsToken,
 		c.trainersClient.ItemsToken,
 		otherPlayer)
-
 	if err != nil {
 		return wrapChallengePlayerError(err)
 	}
@@ -569,7 +579,6 @@ func (c *novaPokemonClient) startAutoBattleQueue() error {
 		pokemonTkns,
 		c.trainersClient.TrainerStatsToken,
 		c.trainersClient.ItemsToken)
-
 	if err != nil {
 		return wrapStartAutoBattleQueueError(err)
 	}
@@ -624,7 +633,8 @@ func (c *novaPokemonClient) startLookForNearbyRaid() error {
 			conn     *websocket.Conn
 			channels *battles.BattleChannels
 		)
-		conn, channels, err = c.gymsClient.EnterRaid(c.authClient.AuthToken, pokemonTkns, c.trainersClient.TrainerStatsToken, c.trainersClient.ItemsToken, gym.Name, serverName)
+		conn, channels, err = c.gymsClient.EnterRaid(c.authClient.AuthToken, pokemonTkns,
+			c.trainersClient.TrainerStatsToken, c.trainersClient.ItemsToken, gym.Name, serverName)
 		if err != nil {
 			return wrapStartLookForRaid(err)
 		}
@@ -643,8 +653,8 @@ func (c *novaPokemonClient) startLookForNearbyRaid() error {
 // HELPER FUNCTIONS
 
 func (c *novaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.Pokemon, []string, error) {
-	var pokemonTkns = make([]string, nr)
-	var pokemonMap = make(map[string]*pokemons.Pokemon, nr)
+	pokemonTkns := make([]string, nr)
+	pokemonMap := make(map[string]*pokemons.Pokemon, nr)
 
 	c.trainersClient.ClaimsLock.RLock()
 
@@ -675,7 +685,8 @@ func (c *novaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.P
 }
 
 func (c *novaPokemonClient) validateItemTokens() {
-	if valid, err := c.trainersClient.VerifyItems(c.Username, c.trainersClient.ItemsClaims.ItemsHash, c.authClient.AuthToken); err != nil {
+	if valid, err := c.trainersClient.VerifyItems(c.Username, c.trainersClient.ItemsClaims.ItemsHash,
+		c.authClient.AuthToken); err != nil {
 		log.Fatal(err)
 	} else if !*valid {
 		log.Fatal("ended up with wrong items")
@@ -685,7 +696,8 @@ func (c *novaPokemonClient) validateItemTokens() {
 }
 
 func (c *novaPokemonClient) validateStatsTokens() {
-	if valid, err := c.trainersClient.VerifyTrainerStats(c.Username, c.trainersClient.TrainerStatsClaims.TrainerHash, c.authClient.AuthToken); err != nil {
+	if valid, err := c.trainersClient.VerifyTrainerStats(c.Username, c.trainersClient.TrainerStatsClaims.TrainerHash,
+		c.authClient.AuthToken); err != nil {
 		log.Fatal(err)
 	} else if !*valid {
 		log.Fatal("ended up with wrong stats token")
