@@ -34,10 +34,16 @@ spec:
           volumeMounts:
             - mountPath: /logs
               name: logs-volume
+            - mountPath: /services
+              name: services-volume
       volumes:
         - name: logs-volume
           hostPath:
-            path: VAR_HOST_PATH
+            path: VAR_LOGS_HOST_PATH
+            type: Directory
+        - name: services-volume
+          hostPath:
+            path: VAR_SERVICES_HOST_PATH
             type: Directory
       restartPolicy: Never
       nodeSelector:
