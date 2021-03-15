@@ -20,6 +20,7 @@ import (
 	"github.com/NOVAPokemon/utils/notifications"
 	"github.com/NOVAPokemon/utils/pokemons"
 	"github.com/NOVAPokemon/utils/websockets/battles"
+	"github.com/golang/geo/s2"
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -62,7 +63,7 @@ var (
 	manager    websockets.CommunicationManager
 )
 
-func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, region string) {
+func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, startingCell s2.CellID) {
 	config, err := loadConfig()
 	if err != nil {
 		log.Fatal(err)
@@ -78,7 +79,7 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, r
 
 	manager = commsManager
 
-	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, region, manager, c.Username, httpClient)
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, startingCell, manager, httpClient)
 	c.authClient = clients.NewAuthClient(manager, httpClient)
 	c.battlesClient = clients.NewBattlesClient(manager, httpClient)
 	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager, httpClient)

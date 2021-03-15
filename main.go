@@ -72,11 +72,11 @@ func main() {
 	} else {
 		log.Infof("starting client in region %s", regionTag)
 		commsManager = utils.CreateDefaultDelayedManager(true, &utils.OptionalConfigs{
-			Region: startingCell,
+			CellID: startingCell,
 		})
 	}
 
-	client.init(commsManager, regionTag)
+	client.init(commsManager, startingCell)
 
 	err := client.registerAndGetTokens()
 	if err != nil {
