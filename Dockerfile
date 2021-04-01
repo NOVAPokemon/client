@@ -14,5 +14,7 @@ COPY regions_to_area.json .
 COPY $executable .
 COPY $multiclient .
 COPY configs.json .
+COPY lat.txt .
+COPY locations.json .
 
 CMD ["sh", "-c", "./$multiclient"]

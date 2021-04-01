@@ -17,11 +17,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	logsPath                       = "/logs"
-	defaultLocationWeightsFilename = "location_weights.json"
-)
-
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -37,6 +32,7 @@ func main() {
 		clientNum   int
 		regionTag   string
 		timeout     string
+		logsPath    string
 
 		commsManager websockets.CommunicationManager
 	)
@@ -44,6 +40,7 @@ func main() {
 	flag.BoolVar(&autoClient, "a", false, "start automatic client")
 	flag.BoolVar(&logToStdout, "l", false, "log to stdout")
 	flag.IntVar(&clientNum, "n", -1, "client thread number")
+	flag.StringVar(&logsPath, "ld", "/logs", "logs directory")
 	flag.StringVar(&regionTag, "r", "", "region tag for client")
 	flag.StringVar(&timeout, "t", "", "duration for auto clients")
 
@@ -52,16 +49,18 @@ func main() {
 	username := randomString(20)
 
 	if !logToStdout {
-		setLogToFile(username)
+		setLogToFile(logsPath, clientNum)
 	}
 
 	if clientNum != -1 {
 		log.Infof("Thread number: %d", clientNum)
 	}
 
+	const usernameLength = 20
+
 	client := novaPokemonClient{
 		Username: username,
-		Password: randomString(20),
+		Password: randomString(usernameLength),
 	}
 
 	startingCell := s2.CellIDFromLatLng(clients.GetRandomLatLng(regionTag))
@@ -145,8 +144,10 @@ func getRandomRegion(locationWeights utils.LocationWeights) string {
 	return randRegion
 }
 
-func setLogToFile(username string) {
-	filename := fmt.Sprintf("%s/%s.log", logsPath, username)
+func setLogToFile(logsPath string, clientNum int) {
+	filename := fmt.Sprintf("%s/client_%d.log", logsPath, clientNum)
+
+	log.Infof("Logging to file %s", filename)
 
 	file, err := os.Create(filename)
 	if err != nil {

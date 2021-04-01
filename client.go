@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	configFilename           = "configs.json"
+	defaultConfigFilename    = "configs.json"
 	maxNotificationsBuffered = 10
 	authRefreshTime          = 20
 
@@ -64,7 +64,16 @@ var (
 )
 
 func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, startingCell s2.CellID) {
-	config, err := loadConfig()
+	var (
+		configFilename string
+		ok             bool
+	)
+
+	if configFilename, ok = os.LookupEnv("CONFIGS"); !ok {
+		configFilename = defaultConfigFilename
+	}
+
+	config, err := loadConfig(configFilename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,15 +88,22 @@ func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, s
 
 	manager = commsManager
 
-	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, startingCell, manager, httpClient)
-	c.authClient = clients.NewAuthClient(manager, httpClient)
-	c.battlesClient = clients.NewBattlesClient(manager, httpClient)
-	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager, httpClient)
-	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager, httpClient)
-	c.trainersClient = clients.NewTrainersClient(httpClient, manager)
-	c.storeClient = clients.NewStoreClient(manager, httpClient)
-	c.gymsClient = clients.NewGymClient(httpClient, manager)
-	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager, httpClient)
+	ingressURL, exists := os.LookupEnv(utils.IngressEnvVar)
+	if !exists {
+		log.Panicf("%s not set", utils.IngressEnvVar)
+	}
+
+	bc := clients.NewBasicClient(true, ingressURL)
+
+	c.locationClient = clients.NewLocationClient(c.config.LocationConfig, startingCell, manager, httpClient, bc)
+	c.authClient = clients.NewAuthClient(manager, httpClient, bc)
+	c.battlesClient = clients.NewBattlesClient(manager, httpClient, bc)
+	c.tradesClient = clients.NewTradesClient(c.config.TradeConfig, manager, httpClient, bc)
+	c.notificationsClient = clients.NewNotificationClient(c.notificationsChannel, manager, httpClient, bc)
+	c.trainersClient = clients.NewTrainersClient(httpClient, manager, bc)
+	c.storeClient = clients.NewStoreClient(manager, httpClient, bc)
+	c.gymsClient = clients.NewGymClient(httpClient, manager, bc)
+	c.microtransacitonsClient = clients.NewMicrotransactionsClient(manager, httpClient, bc)
 }
 
 func (c *novaPokemonClient) startTradeWithPlayer(playerId string) error {
@@ -391,7 +407,7 @@ func (c *novaPokemonClient) makeRandomMicrotransaction() error {
 	if err != nil {
 		return wrapMakeRandomMicrotransaction(err)
 	}
-	log.Infof("Made transaction with id: %s", transactionId)
+	log.Infof("Made transaction with id: %s", *transactionId)
 	err = c.trainersClient.SetTrainerStatsToken(statsToken)
 	if err != nil {
 		return wrapMakeRandomMicrotransaction(err)
@@ -726,7 +742,7 @@ func (c *novaPokemonClient) validatePokemonTokens() {
 	}
 }
 
-func loadConfig() (*utils.ClientConfig, error) {
+func loadConfig(configFilename string) (*utils.ClientConfig, error) {
 	fileData, err := ioutil.ReadFile(configFilename)
 	if err != nil {
 		return nil, utils.WrapErrorLoadConfigs(err)

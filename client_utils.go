@@ -223,6 +223,7 @@ func doNextBattleMove(selectedPokemon *pokemons.Pokemon, trainerPokemons map[str
 		if err != nil {
 			return wrapNextBattleMoveError(err)
 		}
+
 		selectedPokemon = newPokemon
 		return nil
 	}
