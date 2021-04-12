@@ -49,8 +49,8 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			// if the battle hasn't started but the updatedPokemon is already picked, do nothing
 			select {
 			case <-started:
-				err := doNextBattleMove(selectedPokemon, chosenPokemons, trainersClient.ItemsClaims.Items,
-					channels.OutChannel)
+				err := doNextBattleMove(selectedPokemon, chosenPokemons,
+					trainersClient.ItemsClaims.Items, channels.OutChannel)
 				if err != nil {
 					if strings.Contains(err.Error(), errorNoPokemonAlive.Error()) {
 						log.Warn(err)
@@ -72,6 +72,9 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 			}
 
 			msgData := wsMsg.Content.Data
+
+			log.Infof("Got battle message %+v", wsMsg.Content)
+
 			switch wsMsg.Content.AppMsgType {
 			case battles.StartRaid:
 				fallthrough
