@@ -49,16 +49,10 @@ void run_client(int client_num, char *clients_region, char *timeout_string,
 	fflush(stdout);
 	int retExec = execvp(args[0], args);
 
-	if (retExec < 0)
-	{
-		printf("ERROR: exec failed with status %d and errno %d.\n", retExec,
-			   errno);
-		fflush(stdout);
-		exit(errno);
-	}
-
-	free(client_num_string);
-	free(client_filename);
+	printf("ERROR: exec failed with status %d and errno %d.\n", retExec,
+		   errno);
+	fflush(stdout);
+	exit(errno);
 }
 
 void *wait_for_client(void *args)
@@ -71,7 +65,10 @@ void *wait_for_client(void *args)
 	int status;
 	waitpid(fork_pid, &status, 0);
 
-	printf("Client %d crashed! Check logs.\n", client_num);
+	if (status != 0)
+	{
+		printf("Client %d crashed with status %d! Check logs.\n", client_num, status);
+	}
 	fflush(stdout);
 
 	return NULL;
@@ -119,7 +116,6 @@ int main(int argc, char const *argv[])
 
 	for (int i = 0; i < NUM_CLIENTS; i++)
 	{
-		printf("Creating client %d\n", i);
 		fflush(stdout);
 
 		pid_t fork_id = fork();
@@ -129,6 +125,7 @@ int main(int argc, char const *argv[])
 			// CHILD
 			run_client(i, clients_region, timeout_string, logs_dir,
 					   executable_path);
+			exit(0);
 		}
 
 		thread_args[i][0] = i;
@@ -137,7 +134,6 @@ int main(int argc, char const *argv[])
 		pthread_create(&waiting_threads_ids[i], NULL, wait_for_client,
 					   thread_args[i]);
 
-		printf("Created client %d\n", i);
 		fflush(stdout);
 	}
 
@@ -146,10 +142,9 @@ int main(int argc, char const *argv[])
 	for (int i = 0; i < NUM_CLIENTS; i++)
 	{
 		pthread_join(waiting_threads_ids[i], NULL);
-		printf("Finished thread %d", i);
 	}
 
-	printf("Thread crashed... Check logs.\n");
+	printf("Finished %d clients... Check logs.\n", NUM_CLIENTS);
 	fflush(stdout);
 
 	return 0;
