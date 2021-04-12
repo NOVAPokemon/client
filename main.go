@@ -18,14 +18,6 @@ import (
 )
 
 func main() {
-	rand.Seed(time.Now().UnixNano())
-
-	flag.Usage = func() {
-		fmt.Printf("Usage\n")
-		fmt.Printf("./client -a -l \n")
-		// flag.PrintDefaults()
-	}
-
 	var (
 		autoClient  bool
 		logToStdout bool
@@ -33,8 +25,6 @@ func main() {
 		regionTag   string
 		timeout     string
 		logsPath    string
-
-		commsManager websockets.CommunicationManager
 	)
 
 	flag.BoolVar(&autoClient, "a", false, "start automatic client")
@@ -46,21 +36,39 @@ func main() {
 
 	flag.Parse()
 
-	username := randomString(20)
+	startAClient(autoClient, logToStdout, clientNum, regionTag, timeout,
+		logsPath)
+}
+
+func startAClient(autoClient, logToStdout bool, clientNum int, regionTag,
+	timeout, logsPath string) {
+	rand.Seed(time.Now().UnixNano())
+
+	flag.Usage = func() {
+		fmt.Printf("Usage\n")
+		fmt.Printf("./client -a -l \n")
+	}
+
+	var commsManager websockets.CommunicationManager
+
+	const (
+		usernameLength = 20
+		passwordLength = 20
+	)
+
+	username := randomString(usernameLength)
 
 	if !logToStdout {
 		setLogToFile(logsPath, clientNum)
 	}
 
 	if clientNum != -1 {
-		log.Infof("Thread number: %d", clientNum)
+		log.Infof("Username: %s, Thread number: %d", username, clientNum)
 	}
-
-	const usernameLength = 20
 
 	client := novaPokemonClient{
 		Username: username,
-		Password: randomString(usernameLength),
+		Password: randomString(passwordLength),
 	}
 
 	startingCell := s2.CellIDFromLatLng(clients.GetRandomLatLng(regionTag))
@@ -92,6 +100,7 @@ func main() {
 	)
 	if timeout != "" {
 		maxDuration = true
+
 		var number int
 
 		number, err = strconv.Atoi(timeout[:len(timeout)-1])
