@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
         - name: clients
-          image: "novapokemon/client:race"
+          image: "novapokemon/client:latest"
+          imagePullPolicy: Never
           command: ["sh", "-c", "./multiclient"]
           envFrom:
             - configMapRef:
@@ -24,6 +25,8 @@ spec:
               value: "VAR_CLIENT_NUMS"
             - name: REGION
               value: "VAR_REGION"
+            - name: CLIENTS_TIMEOUT
+              value: "VAR_CLIENTS_TIMEOUT"
           securityContext:
             capabilities:
               add:

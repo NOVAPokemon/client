@@ -16,6 +16,8 @@ import (
 	"github.com/NOVAPokemon/utils/websockets"
 	"github.com/pkg/errors"
 
+	originalHTTP "net/http"
+
 	"github.com/NOVAPokemon/utils"
 	"github.com/NOVAPokemon/utils/clients"
 	"github.com/NOVAPokemon/utils/notifications"
@@ -25,7 +27,6 @@ import (
 	"github.com/gorilla/websocket"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	originalHTTP "net/http"
 )
 
 const (
@@ -138,7 +139,9 @@ func (c *novaPokemonClient) rejectTradeWithPlayer(lobbyId *primitive.ObjectID, s
 func (c *novaPokemonClient) registerAndGetTokens() error {
 	err := c.authClient.Register(c.Username, c.Password)
 	if err != nil {
-		return wrapRegisterAndGetTokensError(err)
+		if !strings.Contains(err.Error(), "409") {
+			return wrapRegisterAndGetTokensError(err)
+		}
 	}
 
 	err = c.loginAndGetTokens()
