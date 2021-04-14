@@ -83,7 +83,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 				if requestTimestamp == 0 {
 					break
 				}
-
 			case battles.RejectBattle:
 				log.Info("battle was rejected")
 				close(channels.RejectedChannel)
@@ -125,7 +124,6 @@ func autoManageBattle(trainersClient *clients.TrainersClient, conn *websocket.Co
 						adversaryPokemon.MaxHP,
 						adversaryPokemon.Species)
 				}
-
 			case battles.RemoveItem:
 				removeItemMsg := &battles.RemoveItemMessage{}
 				if err := mapstructure.Decode(msgData, removeItemMsg); err != nil {

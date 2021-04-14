@@ -142,7 +142,9 @@ func (c *novaPokemonClient) rejectTradeWithPlayer(lobbyId *primitive.ObjectID, s
 func (c *novaPokemonClient) registerAndGetTokens() error {
 	err := c.authClient.Register(c.Username, c.Password)
 	if err != nil {
-		return wrapRegisterAndGetTokensError(err)
+		if !strings.Contains(err.Error(), "409") {
+			return wrapRegisterAndGetTokensError(err)
+		}
 	}
 
 	err = c.loginAndGetTokens()
