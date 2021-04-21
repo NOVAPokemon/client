@@ -2,9 +2,20 @@ FROM debian:latest
 
 ENV executable="executable"
 ENV multiclient="multiclient"
+RUN apt update \
+	&& apt install --no-install-recommends -y make git ca-certificates \
+	libncurses6 libtinfo6 libc6 autoconf automake g++ \
+	&& apt clean \
+	&& rm -rf /var/lib/apt/lists/*
+RUN git clone https://github.com/vgropp/bwm-ng.git
+WORKDIR /bwm-ng
+RUN ./autogen.sh && make && make install
+WORKDIR /
 RUN mkdir /service && mkdir /logs && mkdir /logs/failure_logs
 WORKDIR /service
 
+COPY start_recording.sh .
+RUN chmod +x start_recording.sh
 COPY location_tags.json .
 COPY delays_config.json .
 COPY client_delays.json .
@@ -14,5 +25,9 @@ COPY regions_to_area.json .
 COPY $executable .
 COPY $multiclient .
 COPY configs.json .
+COPY run_script.sh .
+COPY lat.txt .
+COPY locations.json .
+RUN chmod +x run_script.sh
 
-CMD ["sh", "-c", "./$multiclient"]
+CMD ["sh", "-c", "./run_script.sh"]

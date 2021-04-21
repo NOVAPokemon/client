@@ -171,7 +171,6 @@ func loadLocationWeights(locationWeightsFilename string) utils.LocationWeights {
 	err = json.Unmarshal(fileData, &locationWeights)
 	if err != nil {
 		panic(err)
-		return nil
 	}
 
 	return locationWeights
