@@ -197,6 +197,8 @@ func (c *novaPokemonClient) startUpdatingLocation() {
 func (c *novaPokemonClient) mainLoopAuto(maxDuration bool, duration time.Duration) {
 	log.Info("Starting AUTO loop...")
 
+	log.Info("Definitely running new version")
+
 	defer c.validateStatsTokens()
 	defer c.validateItemTokens()
 	defer c.validatePokemonTokens()
@@ -713,7 +715,13 @@ func (c *novaPokemonClient) getPokemonsForBattle(nr int) (map[string]*pokemons.P
 }
 
 func (c *novaPokemonClient) validateItemTokens() {
-	if valid, err := c.trainersClient.VerifyItems(c.Username, c.trainersClient.ItemsClaims.ItemsHash,
+	c.trainersClient.ClaimsLock.RLock()
+	hash := c.trainersClient.ItemsClaims.ItemsHash
+	c.trainersClient.ClaimsLock.RUnlock()
+
+	log.Infof("item hash before %s", hash)
+
+	if valid, err := c.trainersClient.VerifyItems(c.Username, hash,
 		c.authClient.AuthToken); err != nil {
 		log.Fatal(err)
 	} else if !*valid {
@@ -724,7 +732,13 @@ func (c *novaPokemonClient) validateItemTokens() {
 }
 
 func (c *novaPokemonClient) validateStatsTokens() {
-	if valid, err := c.trainersClient.VerifyTrainerStats(c.Username, c.trainersClient.TrainerStatsClaims.TrainerHash,
+	c.trainersClient.ClaimsLock.RLock()
+	hash := c.trainersClient.TrainerStatsClaims.TrainerHash
+	c.trainersClient.ClaimsLock.RUnlock()
+
+	log.Infof("stats hash before %s", hash)
+
+	if valid, err := c.trainersClient.VerifyTrainerStats(c.Username, hash,
 		c.authClient.AuthToken); err != nil {
 		log.Fatal(err)
 	} else if !*valid {
@@ -743,6 +757,8 @@ func (c *novaPokemonClient) validatePokemonTokens() {
 	}
 
 	c.trainersClient.ClaimsLock.RUnlock()
+
+	log.Infof("pokemons hashes before %+v", hashes)
 
 	if valid, err := c.trainersClient.VerifyPokemons(c.Username, hashes, c.authClient.AuthToken); err != nil {
 		log.Fatal(err)
