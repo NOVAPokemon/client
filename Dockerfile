@@ -1,7 +1,5 @@
-FROM debian:latest
+FROM debian:stable-slim AS builder
 
-ENV executable="executable"
-ENV multiclient="multiclient"
 RUN apt update \
 	&& apt install --no-install-recommends -y make git ca-certificates \
 	libncurses6 libtinfo6 libc6 autoconf automake g++ \
@@ -10,6 +8,13 @@ RUN apt update \
 RUN git clone https://github.com/vgropp/bwm-ng.git
 WORKDIR /bwm-ng
 RUN ./autogen.sh && make && make install
+
+
+FROM debian:stable-slim
+
+COPY --from=builder /usr/local/bin/bwm-ng /usr/local/bin/
+ENV executable="executable"
+ENV multiclient="multiclient"
 WORKDIR /
 RUN mkdir /service && mkdir /logs && mkdir /logs/failure_logs
 WORKDIR /service
