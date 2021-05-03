@@ -62,8 +62,13 @@ type novaPokemonClient struct {
 }
 
 var (
-	httpClient = &http.Client{Client: originalHTTP.Client{Timeout: clients.RequestTimeout}}
-	manager    websockets.CommunicationManager
+	httpClient = &http.Client{
+		Client: originalHTTP.Client{
+			Timeout:   clients.RequestTimeout,
+			Transport: clients.NewTransport(),
+		},
+	}
+	manager websockets.CommunicationManager
 )
 
 func (c *novaPokemonClient) init(commsManager websockets.CommunicationManager, startingCell s2.CellID) {
