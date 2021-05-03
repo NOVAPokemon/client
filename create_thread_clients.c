@@ -17,9 +17,9 @@ void run_client(int client_num, char *clients_region, char *timeout_string) {
     int randomTime = rand() % 10 + 1;
     sleep(randomTime);
 
-    char *client_filename = malloc((14 + 10) * sizeof(char));
+    char *client_filename = malloc((18 + 10) * sizeof(char));
 
-    sprintf(client_filename, "/logs/client_%d", client_num);
+    sprintf(client_filename, "/logs/client_%d.log", client_num);
 
     char *client_num_string = malloc(10);
     sprintf(client_num_string, "%d", client_num);
