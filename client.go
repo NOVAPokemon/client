@@ -367,17 +367,16 @@ func (c *novaPokemonClient) handleNotifications(notification utils.Notification,
 			"%s - accept\n"+
 			"%s - reject\n", notification.Type, acceptCmd, rejectCmd)
 
-		select {
-		case op := <-operationsChannel:
-			switch op {
-			case acceptCmd:
-			case rejectCmd:
-				rejected = true
-			default:
-				log.Warnf("invalid notification response: %s", op)
-				return
-			}
+		op := <-operationsChannel
+		switch op {
+		case acceptCmd:
+		case rejectCmd:
+			rejected = true
+		default:
+			log.Warnf("invalid notification response: %s", op)
+			return
 		}
+
 	} else if clientMode == auto {
 		rejectedChance = rand.Float64()
 	}
