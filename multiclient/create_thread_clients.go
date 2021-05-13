@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"strconv"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -31,6 +34,22 @@ func main() {
 
 	wg := &sync.WaitGroup{}
 
+	rlimit := unix.Rlimit{}
+	err = unix.Getrlimit(unix.RLIMIT_NPROC, &rlimit)
+	if err != nil {
+		log.Panic("error setting limit in OS: %v", rlimit)
+	}
+
+	log.Printf("current rlimit %+v", rlimit)
+
+	rlimit.Cur = 100000
+	rlimit.Max = 100000
+
+	err = unix.Setrlimit(unix.RLIMIT_NPROC, &rlimit)
+	if err != nil {
+		log.Panic("error setting limit in OS: %v", rlimit)
+	}
+
 	for i := 0; i < numClients; i++ {
 		wg.Add(1)
 		go launchClient(wg, clientsRegion, clientTimeout, logsDir, projectDir, i)
@@ -52,36 +71,29 @@ func getValidEnvVariable(envVarName string) string {
 func launchClient(wg *sync.WaitGroup, clientsRegion, clientTimeout, logsDir, projectDir string, clientNum int) {
 	defer wg.Done()
 
+	randomTime := time.Duration(rand.Intn(10)) * time.Second
+	time.Sleep(randomTime)
+
 	filename := fmt.Sprintf("%s/client_%d.log", logsDir, clientNum)
 	file, err := os.Create(filename)
 	if err != nil {
 		log.Panic(fmt.Errorf("error in client %d creating file: %w", clientNum, err))
 	}
 
-	cmd := exec.Cmd{
-		Path: fmt.Sprintf("%s/client/executable", projectDir),
-		Args: []string{
-			"-a",
-			"-n", strconv.Itoa(clientNum),
-			"-r", clientsRegion,
-			"-t", clientTimeout,
-			"-ld", logsDir,
-		},
-		Stdout: file,
-		Stderr: file,
+	args := []string{
+		"-a",
+		"-n", strconv.Itoa(clientNum),
+		"-r", clientsRegion,
+		"-t", clientTimeout,
+		"-ld", logsDir,
 	}
+	cmd := exec.Command(fmt.Sprintf("%s/client/executable", projectDir), args...)
+	cmd.Stdout = file
+	cmd.Stderr = file
 
 	err = cmd.Run()
 	if err != nil {
 		log.Error(fmt.Errorf("error in client %d running: %w", clientNum, err))
-
-		var out []byte
-		out, err = cmd.CombinedOutput()
-		if err != nil {
-			log.Panic(fmt.Errorf("error in client %d getting output: %w", clientNum, err))
-		}
-
-		log.Warnf("%s", out)
 
 		err = file.Sync()
 		if err != nil {
