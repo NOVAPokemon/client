@@ -64,7 +64,7 @@ type novaPokemonClient struct {
 var (
 	httpClient = &http.Client{
 		Client: originalHTTP.Client{
-			Timeout:   clients.RequestTimeout,
+			Timeout:   websockets.Timeout,
 			Transport: clients.NewTransport(),
 		},
 	}
