@@ -37,8 +37,6 @@ func main() {
 		clientNum   int
 		regionTag   string
 		timeout     string
-
-		commsManager websockets.CommunicationManager
 	)
 
 	flag.BoolVar(&autoClient, "a", false, "start automatic client")
@@ -49,19 +47,38 @@ func main() {
 
 	flag.Parse()
 
-	username := randomString(20)
+	startAClient(autoClient, logToStdout, clientNum, regionTag, timeout, logsPath)
+}
+
+func startAClient(autoClient, logToStdout bool, clientNum int, regionTag,
+	timeout, logsPath string) {
+	rand.Seed(time.Now().UnixNano())
+
+	flag.Usage = func() {
+		fmt.Printf("Usage\n")
+		fmt.Printf("./client -a -l \n")
+	}
+
+	var commsManager websockets.CommunicationManager
+
+	const (
+		usernameLength = 20
+		passwordLength = 20
+	)
+
+	username := randomString(usernameLength)
 
 	if !logToStdout {
-		setLogToFile(username)
+		setLogToFile(logsPath, clientNum)
 	}
 
 	if clientNum != -1 {
-		log.Infof("Thread number: %d", clientNum)
+		log.Infof("Username: %s, Thread number: %d", username, clientNum)
 	}
 
 	client := novaPokemonClient{
 		Username: username,
-		Password: randomString(20),
+		Password: randomString(passwordLength),
 	}
 
 	startingCell := s2.CellIDFromLatLng(clients.GetRandomLatLng(regionTag))
@@ -70,6 +87,7 @@ func main() {
 		log.Info("starting client without any region associated")
 		commsManager = utils.CreateDefaultCommunicationManager()
 	} else {
+		log.Infof("starting client in region %s", regionTag)
 		commsManager = utils.CreateDefaultDelayedManager(true, &utils.OptionalConfigs{
 			CellID: startingCell,
 		})
@@ -92,6 +110,7 @@ func main() {
 	)
 	if timeout != "" {
 		maxDuration = true
+
 		var number int
 
 		number, err = strconv.Atoi(timeout[:len(timeout)-1])
@@ -144,8 +163,10 @@ func getRandomRegion(locationWeights utils.LocationWeights) string {
 	return randRegion
 }
 
-func setLogToFile(username string) {
-	filename := fmt.Sprintf("%s/%s.log", logsPath, username)
+func setLogToFile(logsPath string, clientNum int) {
+	filename := fmt.Sprintf("%s/client_%d.log", logsPath, clientNum)
+
+	log.Infof("Logging to file %s", filename)
 
 	file, err := os.Create(filename)
 	if err != nil {
