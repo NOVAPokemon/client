@@ -18,7 +18,6 @@ const (
 	regionEnvVarName         = "REGION"
 	clientsTimeoutEnvVarName = "CLIENTS_TIMEOUT"
 	logsDirEnvVarName        = "LOGS_DIR"
-	novapokemonDirEnvVarName = "NOVAPOKEMON"
 )
 
 func main() {
@@ -30,7 +29,6 @@ func main() {
 	clientsRegion := getValidEnvVariable(regionEnvVarName)
 	clientTimeout := getValidEnvVariable(clientsTimeoutEnvVarName)
 	logsDir := getValidEnvVariable(logsDirEnvVarName)
-	projectDir := getValidEnvVariable(novapokemonDirEnvVarName)
 
 	wg := &sync.WaitGroup{}
 
@@ -52,7 +50,7 @@ func main() {
 
 	for i := 0; i < numClients; i++ {
 		wg.Add(1)
-		go launchClient(wg, clientsRegion, clientTimeout, logsDir, projectDir, i)
+		go launchClient(wg, clientsRegion, clientTimeout, logsDir, i)
 	}
 
 	wg.Wait()
@@ -68,7 +66,7 @@ func getValidEnvVariable(envVarName string) string {
 	}
 }
 
-func launchClient(wg *sync.WaitGroup, clientsRegion, clientTimeout, logsDir, projectDir string, clientNum int) {
+func launchClient(wg *sync.WaitGroup, clientsRegion, clientTimeout, logsDir string, clientNum int) {
 	defer wg.Done()
 
 	randomTime := time.Duration(rand.Intn(10)) * time.Second
@@ -85,9 +83,8 @@ func launchClient(wg *sync.WaitGroup, clientsRegion, clientTimeout, logsDir, pro
 		"-n", strconv.Itoa(clientNum),
 		"-r", clientsRegion,
 		"-t", clientTimeout,
-		"-ld", logsDir,
 	}
-	cmd := exec.Command(fmt.Sprintf("%s/client/executable", projectDir), args...)
+	cmd := exec.Command("./executable", args...)
 	cmd.Stdout = file
 	cmd.Stderr = file
 
