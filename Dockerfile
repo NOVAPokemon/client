@@ -31,7 +31,7 @@ COPY $executable .
 COPY $multiclient .
 COPY configs.json .
 COPY run_script.sh .
-COPY lat.txt .
+COPY lats.txt .
 COPY locations.json .
 RUN chmod +x run_script.sh
 
